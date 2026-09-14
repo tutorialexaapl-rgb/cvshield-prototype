@@ -1,0 +1,2606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CVShield (prototype)</title>
+<style>
+  :root{
+    --indigo:#4f46e5;
+    --indigo-dark:#4338ca;
+    --bg:#ffffff;
+    --sidebar-bg:#f9fafb;
+    --border:#e5e7eb;
+    --text:#111827;
+    --text-muted:#6b7280;
+    --green:#059669;
+    --green-bg:#ecfdf5;
+    --amber:#c2410c;
+    --amber-bg:#fef3c7;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  /* ---------- demo banner ---------- */
+  .demo-banner{
+    background:var(--amber);
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    padding:6px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    flex-shrink:0;
+  }
+  .demo-banner button{
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.4);
+    color:#fff;
+    border-radius:6px;
+    padding:3px 10px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .demo-banner button:hover{background:rgba(255,255,255,.25);}
+
+  /* ---------- app layout ---------- */
+  .app{flex:1;display:flex;min-height:0;}
+  .sidebar{
+    width:260px;
+    background:var(--sidebar-bg);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    flex-shrink:0;
+    transition:width .15s ease;
+  }
+  .sidebar.collapsed{width:52px;}
+  .sidebar.collapsed .hide-on-collapse{display:none !important;}
+  .sidebar-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 12px;border-bottom:1px solid var(--border);
+  }
+  .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;white-space:nowrap;}
+  .logo .icon{width:22px;height:22px;flex-shrink:0;}
+  .header-icons{display:flex;gap:4px;}
+  .icon-btn{
+    width:28px;height:28px;border:none;background:transparent;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);
+  }
+  .icon-btn:hover{background:var(--border);}
+  .sidebar.collapsed .sidebar-header{flex-direction:column;gap:8px;}
+
+  .add-role-panel{
+    padding:12px;border-bottom:1px solid var(--border);background:#fff;
+  }
+  .add-role-panel label{font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;}
+  .add-role-panel input, .add-role-panel select{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:8px;
+  }
+  .add-role-panel .row{display:flex;gap:8px;justify-content:flex-end;}
+  .add-role-panel button{border-radius:7px;padding:6px 12px;font-size:13px;border:1px solid var(--border);background:#fff;cursor:pointer;}
+  .add-role-panel button.primary{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .add-role-panel button.primary:disabled{opacity:.5;cursor:default;}
+
+  .profile-card{
+    display:flex;align-items:center;gap:10px;padding:14px 12px;border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .profile-card:hover{background:#f0f1f5;}
+  .avatar{
+    width:36px;height:36px;border-radius:9px;background:#eef2ff;color:var(--indigo);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .avatar.ready{background:var(--green-bg);color:var(--green);}
+  .profile-title{font-size:13.5px;font-weight:600;line-height:1.3;}
+  .profile-sub{font-size:12px;color:var(--text-muted);}
+
+  .folder{padding:10px 8px;flex:1;overflow-y:auto;}
+  .folder-header{
+    display:flex;align-items:center;gap:6px;padding:6px 6px;font-size:12.5px;font-weight:600;color:var(--text-muted);
+    cursor:pointer;
+  }
+  .folder-header .count{
+    background:var(--border);color:var(--text-muted);border-radius:10px;padding:0 6px;font-size:11px;margin-left:2px;
+  }
+  .folder-header .spacer{flex:1;}
+  .folder-header .add-chat{border:none;background:transparent;cursor:pointer;color:var(--text-muted);font-size:14px;}
+  .chat-list{margin-top:2px;}
+  .chat-item{
+    padding:8px 10px;font-size:13px;border-radius:8px;color:var(--text-muted);cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .chat-item:hover{background:#f0f1f5;}
+  .chat-item.active{background:var(--indigo);color:#fff;}
+
+  .sidebar-footer{
+    border-top:1px solid var(--border);padding:10px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .sidebar-footer .new-chat{
+    flex:1;margin-left:6px;background:#fff;border:1px solid var(--border);border-radius:8px;
+    padding:7px 10px;font-size:13px;cursor:pointer;text-align:left;
+  }
+  .sidebar-footer .new-chat:hover{background:#f0f1f5;}
+
+  /* collapsed icon rail */
+  .rail-icons{display:none;flex-direction:column;align-items:center;gap:14px;padding-top:10px;}
+  .sidebar.collapsed .rail-icons{display:flex;}
+  .sidebar.collapsed .folder, .sidebar.collapsed .profile-card, .sidebar.collapsed .sidebar-footer .new-chat{display:none;}
+
+  /* ---------- notebook resize handle ---------- */
+  .notebook-resizer{
+    width:10px;flex-shrink:0;cursor:col-resize;background:transparent;position:relative;z-index:5;
+  }
+  .notebook-resizer::after{
+    content:"";position:absolute;top:0;bottom:0;left:4px;width:2px;border-radius:2px;background:transparent;
+  }
+  .notebook-resizer:hover::after, .notebook-resizer.dragging::after{background:#c7d2fe;}
+  .notebook-resizer.hidden-resizer{display:none;}
+  body.resizing-notebook{cursor:col-resize;user-select:none;}
+  body.resizing-notebook .notebook-panel{transition:none;}
+
+  /* ---------- notebook panel (right side) ---------- */
+  .notebook-panel{
+    width:300px;flex-shrink:0;background:var(--sidebar-bg);border-left:1px solid var(--border);
+    display:flex;flex-direction:column;transition:width .15s ease;
+    min-width:0;
+  }
+  .notebook-panel.hidden-panel{width:0 !important;overflow:hidden;border-left:none;}
+  .notebook-head{padding:14px 16px;border-bottom:1px solid var(--border);}
+  .notebook-head .nb-title{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+  .notebook-head .nb-sub{font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .notebook-body{flex:1;display:flex;flex-direction:column;padding:14px 16px;min-height:0;}
+  .notebook-body textarea{
+    flex:1;width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13px;
+    font-family:inherit;resize:none;outline:none;background:#fff;min-height:120px;
+  }
+  .notebook-actions{display:flex;gap:8px;margin-top:10px;}
+  .notebook-actions .btn{flex:1;font-size:12.5px;padding:7px 10px;}
+  .notebook-saved{font-size:11px;color:var(--text-muted);margin-top:8px;text-align:right;min-height:14px;}
+  .pill.notebook-active{background:#eef2ff;color:var(--indigo);border-color:#c7d2fe;}
+
+  /* ---------- chat main ---------- */
+  .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .messages{flex:1;overflow-y:auto;padding:28px 10% 10px;}
+  .msg-user{
+    background:var(--indigo);color:#fff;border-radius:14px;border-top-right-radius:4px;
+    padding:14px 16px;max-width:70%;margin-left:auto;margin-bottom:16px;font-size:14.5px;line-height:1.5;
+  }
+  .msg-user .msg-actions{margin-top:8px;text-align:right;}
+  .msg-assistant{margin-bottom:28px;font-size:14.5px;line-height:1.6;color:var(--text);}
+  .msg-assistant .msg-actions{
+    margin-top:10px;display:flex;gap:16px;font-size:12.5px;color:var(--text-muted);
+  }
+  .msg-actions button{background:none;border:none;color:inherit;cursor:pointer;font-size:12.5px;display:inline-flex;gap:4px;align-items:center;padding:0;}
+  .msg-actions button:hover{color:var(--indigo);}
+  .msg-user .msg-actions button{color:rgba(255,255,255,.85);}
+  .msg-user .msg-actions button:hover{color:#fff;}
+  .msg-assistant .source-block{
+    background:#f4f4f6;border:1px solid var(--border);border-radius:10px;padding:14px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;color:#374151;
+  }
+  .msg-assistant .source-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em;}
+  .msg-assistant b{font-weight:700;}
+
+  .composer{border-top:1px solid var(--border);padding:14px 10% 16px;}
+  .composer-box{border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:#fff;}
+  .composer-box textarea{
+    width:100%;border:none;resize:none;font-size:14px;font-family:inherit;outline:none;min-height:22px;max-height:120px;
+  }
+  .composer-row{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;}
+  .pill{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:#fff;border-radius:20px;
+    padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--text-muted);
+  }
+  .pill:hover{background:#f4f4f6;}
+  .pill.active{background:#eef2ff;color:var(--indigo);border-color:#c7d2fe;}
+  .switch{
+    width:28px;height:16px;border-radius:10px;background:var(--border);position:relative;transition:.15s;flex-shrink:0;
+  }
+  .switch::after{content:"";position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:2px;transition:.15s;}
+  .switch.on{background:var(--indigo);}
+  .switch.on::after{left:14px;}
+  .style-dropdown{margin-left:auto;position:relative;}
+  .style-dropdown .pill{background:var(--amber-bg);color:var(--amber);border-color:#fde68a;font-weight:600;}
+
+  .timeline-dropdown{position:relative;}
+  .timeline-menu{
+    position:absolute;bottom:34px;left:0;background:#fff;border:1px solid var(--border);border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);width:250px;padding:14px;display:none;z-index:20;
+    max-height:70vh;overflow-y:auto;
+  }
+  .timeline-menu.open{display:block;}
+  .timeline-menu-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+  .timeline-menu label{display:block;font-size:11.5px;color:var(--text-muted);margin-bottom:10px;}
+  .timeline-menu label:last-of-type{margin-bottom:6px;}
+  .timeline-menu input{
+    display:block;width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;
+    font-size:12.5px;font-family:inherit;
+  }
+  .timeline-menu-saved{font-size:10.5px;color:var(--green);text-align:right;min-height:13px;}
+  .style-menu{
+    position:absolute;bottom:34px;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);width:220px;padding:6px;display:none;z-index:20;
+  }
+  .style-menu.open{display:block;}
+  .style-menu .label{font-size:10.5px;color:var(--text-muted);padding:6px 8px;text-transform:uppercase;letter-spacing:.04em;}
+  .style-menu .opt{padding:8px;border-radius:7px;cursor:pointer;display:flex;justify-content:space-between;font-size:13px;}
+  .style-menu .opt:hover{background:#f4f4f6;}
+  .style-menu .opt.selected{background:#fef9c3;}
+  .style-menu .opt span.desc{color:var(--text-muted);font-size:11.5px;}
+
+  .prompt-pills{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .prompt-pills button{
+    border:1px solid var(--border);background:#fff;border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--text);
+  }
+  .prompt-pills button:hover{background:#f4f4f6;}
+
+  /* ---------- modals ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;z-index:100;
+  }
+  .hidden{display:none !important;}
+  .modal{
+    background:#fff;border-radius:16px;width:640px;max-width:92vw;max-height:86vh;overflow-y:auto;
+    box-shadow:0 20px 50px rgba(0,0,0,.2);
+  }
+  .modal.wide{width:820px;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border);}
+  .modal-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:8px;}
+  .modal-head .x{border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1;}
+  .modal-body{padding:22px 24px;}
+  .modal-foot{padding:16px 24px;border-top:1px solid var(--border);}
+
+  .dropzone{
+    border:2px dashed #c7d2fe;border-radius:12px;padding:36px 20px;text-align:center;background:#fafafe;cursor:pointer;position:relative;
+  }
+  .dropzone:hover{background:#f5f5fd;}
+  .dropzone .dot{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--indigo);}
+  .dropzone .dz-icon{color:var(--indigo);margin-bottom:10px;}
+  .dropzone .dz-title{font-weight:600;font-size:14.5px;margin-bottom:4px;}
+  .dropzone .dz-sub{font-size:13px;color:var(--text-muted);}
+  .muted-note{font-size:12px;color:var(--text-muted);margin-top:10px;text-align:center;}
+  .info-note{font-size:13px;color:var(--text-muted);background:#f4f4f6;border-radius:10px;padding:10px 12px;margin-bottom:16px;}
+
+  .guide-step{display:flex;gap:12px;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .guide-step .num{
+    width:22px;height:22px;border-radius:50%;background:var(--indigo);color:#fff;font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .guide-step h4{margin:0 0 4px;font-size:14px;}
+  .guide-step p{margin:0;font-size:12.8px;color:var(--text-muted);line-height:1.5;}
+  .guide-step .chip{
+    margin-top:8px;display:inline-block;background:#eef2ff;color:var(--indigo);font-size:11.5px;padding:4px 8px;border-radius:6px;
+  }
+  .guide-check{
+    background:var(--green-bg);color:var(--green);border-radius:10px;padding:10px 12px;font-size:12.8px;margin-bottom:14px;
+  }
+  .modal-foot.between{display:flex;align-items:center;justify-content:space-between;}
+  label.checkbox{font-size:12.8px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+
+  .btn{border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;}
+  .btn:hover{background:#f4f4f6;}
+  .btn.primary{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .btn.primary:hover{background:var(--indigo-dark);}
+  .btn.primary:disabled{opacity:.6;cursor:default;}
+  .btn.block{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;}
+
+  .review-grid{display:flex;gap:20px;}
+  .review-left{flex:1;}
+  .review-right{width:250px;flex-shrink:0;}
+  .cv-preview{border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;line-height:1.7;min-height:170px;}
+  .redact-bar{background:#111827;display:inline-block;border-radius:3px;height:15px;margin:1px 3px 1px 0;vertical-align:middle;}
+  .hide-input-row{display:flex;gap:8px;margin-top:12px;}
+  .hide-input-row input{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.8px;}
+  .hide-input-row button{white-space:nowrap;}
+  .protected-head{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:10px;}
+  .protected-head span.n{color:var(--text-muted);font-weight:400;}
+  .protected-item{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .protected-item .row1{display:flex;align-items:center;gap:6px;font-size:12.8px;font-weight:600;}
+  .protected-item .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+  .protected-item .row2{display:flex;align-items:center;justify-content:space-between;margin-top:3px;}
+  .protected-item .masked{font-family:ui-monospace,monospace;font-size:12px;color:var(--text-muted);}
+  .protected-item .acts{display:flex;gap:6px;}
+  .protected-item .acts button{border:none;background:transparent;cursor:pointer;color:var(--text-muted);font-size:14px;}
+  .protected-item.off .dot{background:#d1d5db;}
+  .protected-item.off .masked{text-decoration:line-through;}
+  .protected-footer{font-size:12px;color:var(--text-muted);background:#f4f4f6;border-radius:8px;padding:9px 10px;margin-top:6px;}
+
+  .extract-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px 0;color:var(--text-muted);font-size:14px;}
+  .spinner{width:18px;height:18px;border:2.5px solid var(--border);border-top-color:var(--indigo);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .profile-ready-badge{display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:12px;font-weight:700;margin-bottom:6px;}
+  .profile-hero{border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px;}
+  .profile-hero-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .profile-hero h3{margin:2px 0 8px;font-size:19px;}
+  .profile-hero p{margin:0 0 12px;font-size:13.3px;color:var(--text-muted);line-height:1.55;}
+  .profile-meta{display:flex;gap:18px;font-size:12.5px;color:var(--text-muted);}
+  .profile-meta b{color:var(--text);font-weight:600;}
+  .section-card{border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:16px;}
+  .section-card h4{margin:0 0 12px;font-size:13.5px;}
+  .tag-group{margin-bottom:10px;}
+  .tag-group .lbl{font-size:10.5px;color:var(--text-muted);font-weight:700;letter-spacing:.04em;margin-bottom:6px;}
+  .tag{display:inline-block;border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:12px;margin:0 6px 6px 0;font-family:ui-monospace,monospace;background:#fafafa;}
+  .exp-item{margin-bottom:14px;}
+  .exp-item:last-child{margin-bottom:0;}
+  .exp-item .role{font-size:13.5px;font-weight:600;}
+  .exp-item .role .co{font-weight:400;color:var(--text-muted);}
+  .exp-item .yrs{font-size:12px;color:var(--text-muted);margin-bottom:4px;}
+  .exp-item ul{margin:4px 0 0;padding-left:18px;font-size:12.8px;color:#374151;line-height:1.6;}
+  .other-grid{display:flex;gap:14px;}
+  .other-grid .section-card{flex:1;}
+  .other-grid p{font-size:12.8px;margin:0 0 8px;color:#374151;}
+  .other-grid p b{color:var(--text-muted);font-weight:600;}
+
+  .jobboard-search{display:flex;gap:10px;margin-bottom:14px;}
+  .jobboard-search input{flex:1;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13.5px;}
+  .jobboard-search select{border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:13px;background:#fff;}
+  .job-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;}
+  .job-card:hover{border-color:#c7d2fe;background:#fafafe;}
+  .job-card-top{display:flex;justify-content:space-between;align-items:flex-start;}
+  .job-card .title{font-size:14px;font-weight:700;}
+  .job-card .company{font-size:12.5px;color:var(--text-muted);margin-bottom:6px;}
+  .match-badge{background:var(--green-bg);color:var(--green);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+  .job-loc{font-size:12px;color:var(--text-muted);margin-bottom:8px;}
+  .job-tags .tag{background:#eef2ff;border-color:#e0e7ff;color:#3730a3;}
+
+  .settings-lock{text-align:center;padding:30px 10px;}
+  .settings-lock .lock{font-size:34px;margin-bottom:10px;color:var(--text-muted);}
+  .settings-lock h4{margin:0 0 8px;}
+  .settings-lock p{color:var(--text-muted);font-size:13px;line-height:1.6;max-width:380px;margin:0 auto 18px;}
+
+  /* ---------- chat item row ---------- */
+  .chat-item-row{display:flex;align-items:center;gap:4px;border-radius:8px;}
+  .chat-item-row:hover{background:#f0f1f5;}
+  .chat-item-row.active{background:var(--indigo);}
+  .chat-item-row.active .chat-item{color:#fff;}
+  .chat-item{
+    flex:1;padding:8px 10px;font-size:13px;border-radius:8px;color:var(--text-muted);cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:none;
+  }
+  /* ---------- progress bar ---------- */
+  .progress-row{display:flex;align-items:center;gap:8px;margin-top:12px;}
+  .progress-track{flex:1;height:7px;border-radius:6px;background:var(--border);overflow:hidden;}
+  .progress-fill{height:100%;background:var(--green);border-radius:6px;}
+  .progress-label{font-size:11.5px;color:var(--text-muted);white-space:nowrap;}
+
+  /* ---------- try demo entry point ---------- */
+  .try-demo-btn{
+    margin:10px 12px 0;padding:8px 12px;border:1px dashed #c7d2fe;border-radius:8px;background:#f5f5ff;
+    color:var(--indigo);font-size:12.5px;font-weight:600;cursor:pointer;text-align:left;width:calc(100% - 24px);
+  }
+  .try-demo-btn:hover{background:#eef2ff;}
+
+  /* ---------- demo mode: sidebar shows only the one application tile ---------- */
+  .sidebar.demo-mode .profile-card,
+  .sidebar.demo-mode .try-demo-btn,
+  .sidebar.demo-mode .folder,
+  .sidebar.demo-mode .sidebar-footer .new-chat{
+    display:none !important;
+  }
+  .app-info-back{
+    background:none;border:none;color:var(--text-muted);font-size:11.5px;cursor:pointer;
+    padding:0 0 10px;text-align:left;display:block;
+  }
+  .app-info-back:hover{color:var(--indigo);}
+
+  /* ---------- application info panel (left panel, demo-aware) ---------- */
+  .app-info-panel{padding:12px;border-bottom:1px solid var(--border);background:#fff;}
+  .app-info-panel.tile-active{border-left:3px solid var(--indigo);}
+  .app-info-label{font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--text-muted);margin-bottom:6px;}
+  .app-info-company{font-size:13.5px;font-weight:700;}
+  .app-info-position{font-size:12px;color:var(--text-muted);margin-bottom:4px;}
+  .app-info-meta{font-size:11px;color:var(--text-muted);margin-bottom:10px;}
+  .app-info-readiness-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .app-info-readiness-row .progress-track{flex:1;}
+  .app-info-readiness-row .progress-label{font-size:11px;white-space:nowrap;font-weight:600;color:var(--text);}
+  .app-info-tags{margin-bottom:6px;}
+  .app-info-tags:last-child{margin-bottom:0;}
+  .app-info-tags-label{font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:4px;}
+  .app-info-tags .tag{font-size:10.5px;padding:2px 7px;}
+
+  /* ---------- add-target segmented control ---------- */
+  .segmented{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px;}
+  .segmented button{
+    flex:1;border:none;background:#fff;padding:7px 8px;font-size:12.5px;cursor:pointer;color:var(--text-muted);
+    border-right:1px solid var(--border);
+  }
+  .segmented button:last-child{border-right:none;}
+  .segmented button.selected{background:#eef2ff;color:var(--indigo);font-weight:600;}
+
+  /* ---------- mock interview: click-to-reveal Q&A cards (rendered inside a chat message) ---------- */
+  .qa-reveal{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .qa-reveal:last-child{margin-bottom:0;}
+  .qa-reveal-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
+  .qa-reveal-num{
+    flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--indigo);color:#fff;
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  .qa-reveal-cat{
+    flex-shrink:0;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+    padding:2px 6px;border-radius:5px;background:#eef2ff;color:var(--indigo);margin-top:2px;
+  }
+  .qa-reveal-q{flex:1;font-size:13.5px;font-weight:600;}
+  .qa-reveal-actions{display:flex;gap:8px;}
+  .qa-reveal-toggle, .qa-reveal-note{
+    border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;
+    color:var(--text-muted);cursor:pointer;
+  }
+  .qa-reveal-toggle:hover, .qa-reveal-note:hover{color:var(--indigo);border-color:#c7d2fe;}
+  .qa-reveal.revealed .qa-reveal-toggle{color:var(--indigo);border-color:#c7d2fe;}
+  .qa-reveal-answer{display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);font-size:12.8px;color:#374151;line-height:1.6;}
+  .qa-reveal.revealed .qa-reveal-answer{display:block;}
+
+  /* ---------- offer analysis card (rendered inside a chat message) ---------- */
+  .offer-analysis{border:1px solid var(--border);border-radius:12px;padding:16px 18px;background:#fafafa;}
+  .offer-analysis-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+  .offer-analysis-head h4{margin:0;font-size:15px;}
+  .offer-confidence{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--green-bg);color:var(--green);white-space:nowrap;}
+  .offer-reanalyze{border:1px solid var(--border);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text-muted);cursor:pointer;margin-bottom:12px;}
+  .offer-reanalyze:hover{color:var(--indigo);border-color:#c7d2fe;}
+  .offer-reanalyze:disabled{opacity:.6;cursor:default;}
+  .offer-meta{display:flex;gap:16px;font-size:12px;color:var(--text-muted);margin-bottom:14px;}
+  .offer-meta b{color:var(--text);font-weight:600;}
+
+  .offer-section{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .offer-section:last-child{margin-bottom:0;}
+  .offer-section-top{display:flex;justify-content:flex-end;margin-bottom:2px;}
+  .offer-add-custom{border:none;background:transparent;color:var(--text-muted);font-size:11.5px;cursor:pointer;padding:0;}
+  .offer-add-custom:hover{color:var(--indigo);}
+  .offer-section h5{margin:0 0 6px;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);}
+  .offer-section-text{font-size:12.8px;color:#374151;line-height:1.6;}
+  .offer-custom-note{margin-top:8px;padding:8px 10px;background:#eef2ff;border-radius:8px;font-size:12.3px;color:#3730a3;}
+  .offer-custom-form{display:none;margin-top:8px;flex-direction:column;gap:6px;}
+  .offer-custom-form.open{display:flex;}
+  .offer-custom-form textarea{width:100%;border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12.3px;font-family:inherit;resize:vertical;min-height:50px;}
+  .offer-custom-form-actions{display:flex;gap:6px;}
+  .offer-custom-form-actions button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;}
+  .offer-custom-form-actions button.primary{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .offer-section-actions{display:flex;gap:8px;margin-top:8px;}
+  .offer-section-actions button{border:1px solid var(--border);background:#fff;border-radius:7px;padding:4px 10px;font-size:11.5px;color:var(--text-muted);cursor:pointer;}
+  .offer-section-actions button:hover{color:var(--indigo);border-color:#c7d2fe;}
+  .offer-tech-tags{display:flex;flex-wrap:wrap;gap:6px;}
+  .offer-add-custom, .company-add-custom{border:none;background:transparent;color:var(--text-muted);font-size:11.5px;cursor:pointer;padding:0;}
+  .offer-add-custom:hover, .company-add-custom:hover{color:var(--indigo);}
+  .company-custom-form{display:none;margin-top:8px;flex-direction:column;gap:6px;}
+  .company-custom-form.open{display:flex;}
+  .company-custom-form textarea{width:100%;border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12.3px;font-family:inherit;resize:vertical;min-height:50px;}
+  .company-custom-form-actions{display:flex;gap:6px;}
+  .company-custom-form-actions button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;}
+  .company-custom-form-actions button.primary{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+
+  .company-group-label{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--indigo);margin:14px 0 6px 2px;}
+  .company-group-label:first-child{margin-top:0;}
+  .company-list{list-style:none;margin:0;padding:0;}
+  .company-list-item{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;
+    border-bottom:1px solid var(--border);font-size:12.8px;color:#374151;line-height:1.6;
+  }
+  .company-list-item:last-child{border-bottom:none;}
+  .company-list-text{flex:1;}
+  .company-list-actions{display:flex;gap:6px;flex-shrink:0;}
+  .company-list-actions button{border:none;background:transparent;color:var(--text-muted);font-size:11px;cursor:pointer;}
+  .company-list-actions button:hover{color:var(--indigo);}
+
+  .iprep-lang-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;}
+  .iprep-lang-btn{border:none;background:#fff;color:var(--text-muted);font-size:11.5px;font-weight:700;padding:5px 12px;cursor:pointer;}
+  .iprep-lang-btn.active{background:var(--indigo);color:#fff;}
+  .iprep-chips{display:flex;flex-direction:column;gap:8px;}
+  .iprep-chip{display:flex;gap:10px;align-items:flex-start;}
+  .iprep-chip-num{
+    flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--green-bg);color:var(--green);
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  .iprep-chip-improve .iprep-chip-num{background:#fef3c7;color:#92400e;}
+  .iprep-chip-text{display:flex;flex-direction:column;gap:2px;}
+  .iprep-chip-title{font-size:12.8px;color:var(--text);}
+  .iprep-chip-why{font-size:12.3px;color:var(--text-muted);line-height:1.5;}
+
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:6px;}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  🛡️ <span id="bannerText">DEMO MODE — responses are scripted, no API key required</span>
+  <button id="exitDemoBtn">Exit Demo</button>
+</div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo hide-on-collapse">🛡️ CVShield</div>
+      <div class="header-icons hide-on-collapse">
+        <button class="icon-btn" id="addRoleIconBtn" title="Add role / project">📁+</button>
+        <button class="icon-btn" id="collapseBtn" title="Collapse sidebar">⟨⟩</button>
+      </div>
+      <button class="icon-btn" id="expandBtn" title="Expand sidebar" style="display:none;">☰</button>
+    </div>
+
+    <div class="rail-icons">
+      <span title="CVShield">🛡️</span>
+      <span title="Profile" id="railProfile" style="cursor:pointer;">👤</span>
+      <span title="Roles" style="cursor:pointer;">📁</span>
+      <span title="Chats" style="cursor:pointer;">💬</span>
+    </div>
+
+    <div class="add-role-panel hidden hide-on-collapse" id="addRolePanel">
+      <label>Add Target</label>
+      <div class="segmented" id="targetTypeSwitch">
+        <button class="selected" data-type="job">💼 Interview target</button>
+        <button data-type="study">📚 Study target</button>
+      </div>
+      <input type="text" id="newRoleInput" placeholder="e.g. Lead Backend Engineer — FinCore" />
+      <select id="newRoleFromBoard">
+        <option value="">Or link to job from board...</option>
+      </select>
+      <div class="row">
+        <button id="cancelAddRole">Cancel</button>
+        <button class="primary" id="confirmAddRole" disabled>Add Target</button>
+      </div>
+    </div>
+
+    <div class="profile-card hide-on-collapse" id="profileCard">
+      <div class="avatar" id="profileAvatar">🔒</div>
+      <div>
+        <div class="profile-title" id="profileTitle">Profile locked</div>
+        <div class="profile-sub" id="profileSub">Build your profile to unlock</div>
+      </div>
+    </div>
+
+    <button class="try-demo-btn hide-on-collapse" id="tryDemoBtn">✨ Try Demo</button>
+
+    <div class="app-info-panel hidden hide-on-collapse" id="appInfoPanel">
+      <button class="app-info-back" id="appInfoBack">← Back to all chats</button>
+      <div class="app-info-label">APPLICATION</div>
+      <div class="app-info-company" id="appInfoCompany">—</div>
+      <div class="app-info-position" id="appInfoPosition">—</div>
+      <div class="app-info-meta" id="appInfoMeta">—</div>
+      <div class="app-info-readiness-row">
+        <div class="progress-track"><div class="progress-fill" id="appInfoReadinessFill" style="width:0%;"></div></div>
+        <div class="progress-label" id="appInfoReadinessLabel">Readiness: 0%</div>
+      </div>
+      <div class="app-info-tags">
+        <div class="app-info-tags-label">STRONG</div>
+        <div id="appInfoStrong"></div>
+      </div>
+      <div class="app-info-tags">
+        <div class="app-info-tags-label">NEEDS PREP</div>
+        <div id="appInfoNeedsPrep"></div>
+      </div>
+    </div>
+
+    <div class="folder hide-on-collapse">
+      <div class="folder-header">
+        <span>▾</span><span>📁</span><span>Career &amp; Learning Prep</span>
+        <span class="count" id="folderCount">2</span>
+        <span class="spacer"></span>
+        <button class="add-chat" id="addChatBtn" title="New chat in this project">+</button>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+      <button class="new-chat hide-on-collapse" id="newChatFooterBtn">+ New Chat</button>
+    </div>
+  </aside>
+
+  <main class="chat-main">
+    <div class="messages" id="messages"></div>
+
+    <div class="composer">
+      <div class="composer-box">
+        <textarea id="composerInput" rows="1" placeholder="Ask about roles, prep for interviews... · drag files here · wrap code with `"></textarea>
+        <div class="composer-row">
+          <button class="pill" title="Attach">📎</button>
+          <button class="pill" id="profilePill">
+            📄 Profile <span class="switch" id="profileSwitch"></span>
+          </button>
+          <button class="pill" id="jobRolePill">💼 Job Role</button>
+          <button class="pill" id="notebookPill">📓 Notebook</button>
+          <div class="timeline-dropdown">
+            <button class="pill" id="timelinePill">🗓 Timeline</button>
+            <div class="timeline-menu" id="timelineMenu">
+              <div class="timeline-menu-title">Application timeline</div>
+              <label>Application date
+                <input type="date" id="tlApplied"/>
+              </label>
+              <label>Phone / HR interview
+                <input type="date" id="tlPhoneScreen"/>
+              </label>
+              <label>Technical interview
+                <input type="date" id="tlTechnical"/>
+              </label>
+              <label>Recruiter phone
+                <input type="tel" id="tlRecruiterPhone" placeholder="+48 ..."/>
+              </label>
+              <label>Recruiter email
+                <input type="email" id="tlRecruiterEmail" placeholder="recruiter@company.com"/>
+              </label>
+              <label>Developer / hiring manager phone
+                <input type="tel" id="tlDevPhone" placeholder="+48 ..."/>
+              </label>
+              <label>Developer / hiring manager email
+                <input type="email" id="tlDevEmail" placeholder="dev@company.com"/>
+              </label>
+              <div class="timeline-menu-saved" id="timelineSaved"></div>
+            </div>
+          </div>
+          <div class="style-dropdown">
+            <button class="pill" id="styleBtn">⚡ <span id="styleLabel">Balanced</span> ▾</button>
+            <div class="style-menu" id="styleMenu">
+              <div class="label">Demo response style</div>
+              <div class="opt" data-val="Compact"><span>Compact</span><span class="desc">Short, concise answers</span></div>
+              <div class="opt selected" data-val="Balanced"><span>Balanced</span><span class="desc">Detailed but focused</span></div>
+              <div class="opt" data-val="Detailed"><span>Detailed</span><span class="desc">Comprehensive responses</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="prompt-pills" id="promptPills"></div>
+    </div>
+  </main>
+
+  <div class="notebook-resizer" id="notebookResizer" title="Drag to resize"></div>
+  <aside class="notebook-panel" id="notebookPanel">
+    <div class="notebook-head">
+      <div class="nb-title">📓 Notebook</div>
+      <div class="nb-sub" id="nbSub">Which jobs on the board have the...</div>
+    </div>
+    <div class="notebook-body">
+      <textarea id="nbTextarea" placeholder="Freeform notes for this chat — write your own, or click &quot;Summarize chat&quot; to auto-generate a starting point."></textarea>
+      <div class="notebook-actions">
+        <button class="btn" id="nbSummarizeBtn">✨ Summarize chat</button>
+        <button class="btn" id="nbClearBtn">🗑 Clear</button>
+      </div>
+      <div class="notebook-saved" id="nbSaved"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="overlay hidden" id="overlay">
+
+  <div class="modal" id="modalBuildProfile">
+    <div class="modal-head"><h2>Build your profile</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="info-note">In demo mode, a sample CV is used. No real file is processed or uploaded.</div>
+      <div class="dropzone" id="dropzone">
+        <div class="dot"></div>
+        <div class="dz-icon">📄</div>
+        <div class="dz-title" id="dzTitle">Demo CV loaded</div>
+        <div class="dz-sub" id="dzSub">A sample CV is ready to process — click to continue</div>
+      </div>
+      <div class="muted-note">This is demo mode — no real file upload occurs. A sample CV with pre-identified PII is used.</div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalGuide">
+    <div class="modal-head">
+      <h2>🛡️ How data protection works</h2>
+      <button class="x" data-close>×</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-top:-10px;color:var(--text-muted);font-size:13px;">Your privacy is protected locally before anything leaves your browser</p>
+      <div class="guide-step">
+        <div class="num">1</div>
+        <div><h4>Automatic scanning</h4><p>We automatically scan and cover sensitive data: full name, emails, phone numbers, addresses, national IDs (PESEL, NIP), and bank accounts.</p>
+          <div class="chip">Contact: ███████ ✓ Auto-hidden</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="num">2</div>
+        <div><h4>Highlight text to hide it with popup</h4><p>Want to hide a previous employer, handle, or personal detail? Simply select any text with your mouse and click the floating "🔮 Hide from AI" button.</p>
+          <div class="chip">✨ Mark text with cursor → Click "Hide from AI" popup</div>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="num">3</div>
+        <div><h4>Click any block to toggle (Reveal or Hide)</h4><p>Click any covered bar to un-hide it (reveal to AI) if it is safe, or click an un-hidden item to cover it again.</p>
+          <div class="chip">👁 Click covered text ⇄ Switches between Private and Visible</div>
+        </div>
+      </div>
+      <div class="guide-check">✅ Zero personal data is sent to AI models — only de-identified skills &amp; experience pass through.</div>
+    </div>
+    <div class="modal-foot between">
+      <label class="checkbox"><input type="checkbox" id="dontShowGuide"/> Don't show this guide automatically again</label>
+      <button class="btn primary" id="guideContinueBtn">✨ Got it, let's review</button>
+    </div>
+  </div>
+
+  <div class="modal wide" id="modalReview">
+    <div class="modal-head"><h2>Review before it leaves your browser</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="review-grid">
+        <div class="review-left">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b style="font-size:13.5px;">🛡️ Review &amp; protect your private information</b>
+            <button class="pill" style="font-size:11.5px;padding:4px 9px;">ⓘ How it works (Guide)</button>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">Items below with dark bars are <b>hidden from AI models</b>. Click any bar to reveal or hide it. To hide custom information, <b>select/mark text with your mouse</b>.</p>
+          <div class="cv-preview" id="cvPreview"></div>
+          <div class="hide-input-row">
+            <input type="text" placeholder="Or type/paste any specific phrase to hide" id="customHideInput"/>
+            <button class="btn" id="customHideBtn">🔒 Hide from AI</button>
+          </div>
+        </div>
+        <div class="review-right">
+          <div class="protected-head">Protected items (<span id="protectedCount">5</span>) <span class="n" id="activeCount">5 active</span></div>
+          <div id="protectedList"></div>
+          <div class="protected-footer"><b id="footerActiveCount">5</b> of <span id="footerTotalCount">5</span> sensitive items will be completely stripped before this text is sent to the AI.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn primary block" id="reviewContinueBtn">Looks good — build my profile →</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modalExtracting">
+    <div class="modal-head"><h2>Your profile</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="extract-loading"><div class="spinner"></div> Extracting profile...</div>
+    </div>
+  </div>
+
+  <div class="modal wide" id="modalProfile">
+    <div class="modal-head"><h2>Your profile</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="profile-hero">
+        <div class="profile-hero-head">
+          <div>
+            <div class="profile-ready-badge">✦ PROFILE READY</div>
+            <h3>Senior Full-Stack Engineer</h3>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn" id="editManuallyBtn">✎ Edit manually</button>
+            <button class="btn" id="rebuildBtn">↻ Rebuild from a new CV</button>
+          </div>
+        </div>
+        <p>Experienced full-stack engineer with 7 years building production systems in fintech and e-commerce. Proficient in TypeScript, React, and Node.js. AWS certified. Passionate about clean architecture, developer experience, and mentoring.</p>
+        <div class="profile-meta">
+          <span>Seniority: <b>Senior</b></span>
+          <span>Experience: <b>7 yrs</b></span>
+          <span>Remote preference: <b>Hybrid</b></span>
+        </div>
+        <div class="progress-row">
+          <div class="progress-track"><div class="progress-fill" style="width:85%;"></div></div>
+          <div class="progress-label">Profile completeness: <b style="color:var(--text);">85%</b></div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <h4>Skills &amp; tags</h4>
+        <div class="tag-group"><div class="lbl">LANGUAGES</div><span class="tag">TypeScript</span></div>
+        <div class="tag-group"><div class="lbl">FRAMEWORKS &amp; LIBRARIES</div><span class="tag">React</span><span class="tag">Node.js</span><span class="tag">GraphQL</span></div>
+        <div class="tag-group"><div class="lbl">TOOLS</div><span class="tag">PostgreSQL</span><span class="tag">Docker</span><span class="tag">Redis</span></div>
+        <div class="tag-group" style="margin-bottom:0;"><div class="lbl">PLATFORMS</div><span class="tag">AWS</span></div>
+      </div>
+
+      <div class="section-card">
+        <h4>Experience</h4>
+        <div class="exp-item">
+          <div class="role">Lead Engineer <span class="co">· fintech startup</span></div>
+          <div class="yrs">~3 years</div>
+          <ul>
+            <li>Owned end-to-end payments infrastructure handling €2M daily transactions</li>
+            <li>Mentored 2 junior engineers and conducted weekly code reviews</li>
+            <li>Reduced API latency by 40% through Redis caching and query optimisation</li>
+          </ul>
+        </div>
+        <div class="exp-item">
+          <div class="role">Full-Stack Developer <span class="co">· software consultancy</span></div>
+          <div class="yrs">~2 years</div>
+          <ul>
+            <li>Delivered 4 client projects across healthcare and retail verticals</li>
+            <li>Introduced TypeScript and automated testing practices to the team</li>
+            <li>Built reusable React component library adopted across 3 projects</li>
+          </ul>
+        </div>
+        <div class="exp-item">
+          <div class="role">Backend Engineer <span class="co">· e-commerce platform</span></div>
+          <div class="yrs">~2 years</div>
+          <ul>
+            <li>Designed and maintained product catalogue and inventory microservices</li>
+            <li>Migrated monolith to Docker-based microservices, improving deploy frequency 3×</li>
+            <li>Implemented GraphQL gateway reducing over-fetching by 60%</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="other-grid">
+        <div class="section-card">
+          <h4>Education</h4>
+          <p>Bachelor of Science — Computer Science (Bachelor)</p>
+        </div>
+        <div class="section-card">
+          <h4>Other</h4>
+          <p><b>Industries:</b> fintech, e-commerce</p>
+          <p><b>Spoken languages:</b> English, Polish</p>
+          <p><b>Certifications:</b> AWS Solutions Architect Associate</p>
+          <p style="margin-bottom:0;"><b>Looking for:</b> Full-Stack Engineer, Backend Engineer, Tech Lead</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn primary block" id="closeProfileBtn">Done</button></div>
+  </div>
+
+  <div class="modal wide" id="modalJobBoard">
+    <div class="modal-head"><h2>💼 Browse the job board</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="jobboard-search">
+        <input type="text" id="jobSearchInput" placeholder="Search title, company, skill..."/>
+        <select id="jobModeFilter">
+          <option value="">All work modes</option>
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
+        </select>
+      </div>
+      <div id="jobList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalSettings">
+    <div class="modal-head"><h2>AI connection</h2><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="settings-lock">
+        <div class="lock">🔒</div>
+        <h4>Settings unavailable in Demo Mode</h4>
+        <p>API key configuration and model management are disabled. In demo mode, a scripted response engine simulates AI behavior.</p>
+        <button class="btn" data-close>Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- safe storage (localStorage can throw, e.g. in sandboxed/data: previews) ---------------- */
+  const memoryStore = {};
+  const safeStorage = {
+    get(key, fallback){
+      try { const v = localStorage.getItem(key); return v === null ? fallback : v; }
+      catch(e){ return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : fallback; }
+    },
+    set(key, val){
+      try { localStorage.setItem(key, val); }
+      catch(e){ memoryStore[key] = val; }
+    }
+  };
+
+  /* ---------------- state ---------------- */
+  const state = {
+    profileBuilt: JSON.parse(safeStorage.get("cvs_profileBuilt", "false")),
+    profileOn: true,
+    sidebarCollapsed: false,
+    responseStyle: "Balanced",
+    protectedItems: [
+      {label:"Full name", masked:"•••••••", on:true},
+      {label:"Email address", masked:"•••••••", on:true},
+      {label:"Phone number", masked:"•••••••", on:true},
+      {label:"Address", masked:"•••••••", on:true},
+      {label:"National ID", masked:"•••••••", on:true},
+    ],
+    extraRoles: JSON.parse(safeStorage.get("cvs_extraRoles", "[]")),
+    activeChat: "matches",
+  };
+
+  const jobs = [
+    {id:"nordwave-backend", title:"Senior Backend Engineer", company:"Nordwave Payments", match:80, loc:"Warsaw, PL", mode:"hybrid", salary:"22 000 – 30 000 PLN net (B2B)", tags:["node.js","typescript","postgresql","kafka","fintech","aws"]},
+    {id:"latka-frontend", title:"Frontend Engineer (React)", company:"Latka Studio", match:64, loc:"Krakow, PL", mode:"hybrid", salary:"15 000 – 20 000 PLN net (B2B)", tags:["react","typescript","tailwind","design systems"]},
+    {id:"insurly-fullstack", title:"Full-Stack Developer", company:"Insurly", match:59, loc:"Remote (EU)", mode:"remote", salary:"18 000 – 24 000 PLN net (B2B)", tags:["react","typescript","node.js","insurtech","supabase"]},
+    {id:"nordwave-em", title:"Engineering Manager", company:"Nordwave Payments", match:58, loc:"Warsaw, PL", mode:"hybrid", salary:"30 000 – 38 000 PLN net (B2B)", tags:["leadership","node.js","typescript","fintech","mentoring"]},
+    {id:"recruito-founding", title:"Founding Engineer", company:"Recruito", match:49, loc:"Remote (EU)", mode:"remote", salary:"Salary + equity, negotiable", tags:["react","node.js","supabase","ai","recruitment tech"]},
+    {id:"grosik-mobile", title:"Mobile Engineer (React Native)", company:"Grosik", match:49, loc:"Poznan, PL", mode:"hybrid", salary:"14 000 – 19 000 PLN net (B2B)", tags:["react native","typescript","mobile"]},
+  ];
+
+  /* ================================================================
+     DEMO DATA — AI Interview Coach demo
+     Source of truth: real job posting (Power BI Developer, Grupa Maspex,
+     Wadowice) + a real candidate CV. Personal contact details are not
+     reproduced anywhere in the demo. Every MATCHED/PARTIAL/GAP call below
+     is grounded in what the CV actually states — nothing is invented.
+     ================================================================ */
+  const DEMO_DATA = {
+    candidate: {
+      firstName: "Karol",
+      fullName: "Karol Hołda",
+      currentTitle: "Junior Data Analyst / BI Developer",
+      experience: [
+        { role: "Junior Data Analyst", company: "vangogi.pl", period: "May 2020 – Present" },
+        { role: "Junior Architect", company: "Sayos Architects", period: "Oct 2023 – Oct 2024" }
+      ],
+      education: "Master's Degree in Architecture — University of Technology T. Kościuszko, Kraków",
+      languages: ["Polish (native)", "English C1", "German B2"]
+    },
+    job: {
+      company: "Grupa Maspex",
+      position: "Power BI Developer",
+      sourceUrl: "https://www.pracuj.pl/praca/power-bi-developer-k-m-wadowice,oferta,1005089097",
+      domain: "Business analytics, Data analytics & BI",
+      location: "Wadowice, małopolskie",
+      employmentType: "Umowa o pracę, pełny etat",
+      seniority: "Mid / Senior",
+      workMode: "Stacjonarnie (1 dzień pracy zdalnej w tygodniu)",
+      salary: null,
+      parseConfidence: 88,
+      responsibilitiesText: "projektowanie i budowanie raportów Power BI zgodnie z określoną roadmapą wdrożenia, udział w projekcie migracji środowiska raportowego na Power BI, modelowanie danych w warstwie semantycznej (star schema, DAX, relacje), optymalizacja wydajności raportów i modeli danych, współpraca z analitykami i użytkownikami kluczowymi przy definiowaniu wymagań, stosowanie i propagowanie wypracowanych standardów Power BI.",
+      requirementsText: "minimum 2 lata praktycznego doświadczenia z Power BI Desktop i Power BI Service, biegłość w DAX, dobra znajomość SQL, umiejętność modelowania danych (star schema, relacje), doświadczenie z Row-Level Security (RLS), doświadczenie w pracy z wymaganiami biznesowymi, samodzielność, komunikatywność i chęć aktywnego wpływania na kształt rozwiązań BI.",
+      niceToHaveText: "doświadczenie z administracją Power BI Service (zarządzanie workspace'ami, licencjonowanie, Premium Capacity, bramy danych, uprawnienia), znajomość platformy Databricks i usług chmurowych Azure (ADF, ADLS), doświadczenie z Git / Azure DevOps w kontekście projektów BI, znajomość Microsoft Fabric.",
+      benefitsText: "możliwość rozwoju wewnątrz jednostek biznesowych Grupy, stabilność zatrudnienia w oparciu o umowę o pracę w firmie — u lidera branży spożywczej, pozytywny i zgrany zespół współpracowników, możliwość korzystania z wiedzy ekspertów, zniżki na produkty firmowe, 1 dzień pracy zdalnej w tygodniu, szeroki pakiet benefitów, w tym m.in. prywatna opieka medyczna Luxmed, ubezpieczenie na życie PZU, dofinansowanie karty Multisport, dofinansowanie posiłku, dofinansowanie wypoczynku.",
+      techRequired: ["Microsoft Power BI", "DAX", "SQL"],
+      techNiceToHave: ["Git", "Azure DevOps", "Microsoft Fabric"]
+    },
+    match: [
+      { req: "SQL", status: "MATCHED", note: "2 lata pisania zaawansowanych zapytań — JOIN, subquery, CTE, optymalizacja wydajności." },
+      { req: "DAX", status: "MATCHED", note: "Miary zaawansowane, kolumny obliczeniowe — zarówno zawodowo, jak i w projekcie własnym (Employee Report)." },
+      { req: "Power BI Desktop & Service (2+ lata)", status: "PARTIALLY MATCHED", note: "Realnie ok. 1 rok doświadczenia zawodowego — poniżej wymaganych 2 lat. Częściowo rekompensowane portfolio projektami." },
+      { req: "Modelowanie danych (star schema, relacje)", status: "PARTIALLY MATCHED", note: "Doświadczenie w modelowaniu w Power BI/DAX jest, ale CV nie wspomina wprost o star schema." },
+      { req: "Row-Level Security (RLS)", status: "GAP", note: "Brak jakiejkolwiek wzmianki w CV." },
+      { req: "Doświadczenie z wymaganiami biznesowymi", status: "MATCHED", note: "Budowanie relacji z klientami, analiza sprzedaży pod decyzje strategiczne, praca w Agile/Scrum." },
+      { req: "Administracja Power BI Service", status: "PARTIALLY MATCHED", note: "Zarządzanie harmonogramami odświeżania i dostępem użytkowników — ale bez Premium Capacity / bram danych." },
+      { req: "Databricks / Azure (ADF, ADLS)", status: "PARTIALLY MATCHED", note: "Wymienione w sekcji Skills (Databricks, Data Lake, Data Factory), ale bez opisu konkretnego projektu." },
+      { req: "Git / Azure DevOps", status: "GAP", note: "Brak wzmianki w CV." },
+      { req: "Microsoft Fabric", status: "GAP", note: "Bardzo nowa technologia — niski próg wejścia, brak u większości kandydatów." }
+    ],
+    strengths: [
+      { title: "SQL", why: "2 lata pisania zaawansowanych zapytań (JOIN, CTE, subquery) — dokładnie to, czego szuka Maspex jako \"dobra znajomość SQL\"." },
+      { title: "DAX i Power BI dashboarding", why: "Miary, kolumny obliczeniowe, interaktywne dashboardy — rdzeń tej roli." },
+      { title: "ETL (SSIS, Power Query)", why: "Doświadczenie z przepływami danych przyda się przy migracji środowiska raportowego, o której mówi oferta." },
+      { title: "Komunikacja z biznesem", why: "Rola wymaga współpracy z analitykami i key userami — masz na to dowody z pracy z klientami." },
+      { title: "Samodzielna praktyka (portfolio)", why: "Projekt \"Employee Report\" w Power BI pokazuje inicjatywę wykraczającą poza obowiązki zawodowe." }
+    ],
+    gaps: [
+      { priority: "HIGH", title: "Row-Level Security (RLS)", why: "Wymóg wprost wymieniony w ofercie — brak RLS w CV to realne ryzyko pytania na rozmowie.", whatToKnow: "Jak działa RLS w Power BI: role, filtry DAX (USERPRINCIPALNAME()), static vs dynamic RLS.", question: "Jak zaimplementowałbyś RLS, żeby regionalni managerowie widzieli tylko dane swojego regionu?" },
+      { priority: "HIGH", title: "1 rok Power BI vs wymagane 2 lata", why: "To największe ryzyko seniority — oferta jest Mid/Senior, a formalne doświadczenie w Power BI to ok. rok.", whatToKnow: "Połącz 1 rok zawodowy z projektami własnymi (Employee Report) jako dowód głębszej praktyki.", question: "Masz rok doświadczenia w Power BI, a szukamy kogoś na Mid/Senior — dlaczego mielibyśmy Cię zatrudnić na to stanowisko?" },
+      { priority: "MEDIUM", title: "Star schema / modelowanie wymiarowe", why: "Oferta wprost wymaga modelowania w star schema — CV pokazuje modelowanie w DAX, ale nie nazywa tego wprost.", whatToKnow: "Fact table vs dimension table, dlaczego star schema jest szybszy niż snowflake w Power BI.", question: "Jak zaprojektowałbyś star schema dla danych sprzedażowych z wymiarami Produkt, Klient, Czas, Sklep?" },
+      { priority: "MEDIUM", title: "Git / Azure DevOps w kontekście BI", why: "Mile widziane, ale coraz częściej oczekiwane przy pracy zespołowej nad raportami.", whatToKnow: "Podstawy kontroli wersji plików .pbix, branch/PR workflow w Azure DevOps.", question: "Czy pracowałeś kiedyś z kontrolą wersji przy plikach Power BI?" },
+      { priority: "LOW", title: "Microsoft Fabric", why: "Bardzo nowa platforma — mile widziana, niewielu kandydatów ma z nią doświadczenie.", whatToKnow: "Ogólne pojęcie: Fabric łączy Power BI, Data Factory i Synapse w jednym środowisku SaaS.", question: "Czy słyszałeś o Microsoft Fabric i jak wpisuje się w ekosystem Power BI?" }
+    ],
+    company: {
+      confidence: 90,
+      industry: "Branża spożywcza",
+      companySize: "Lider branży spożywczej",
+      summary: "Maspex to wiodący producent w branży spożywczej, oferujący szeroki asortyment produktów, w tym napojów i żywności. Firma stawia na innowacyjność i rozwój, dążąc do dostarczania wysokiej jakości produktów dla swoich klientów.",
+      productsServices: "Maspex produkuje napoje, soki, przekąski oraz inne produkty spożywcze, koncentrując się na jakości i innowacyjności.",
+      hiringFocus: "Firma rekrutuje, aby wzmocnić zespół BI i efektywnie wdrożyć nowe rozwiązania raportowe w Power BI.",
+      potentialProjects: "Kandydat będzie uczestniczył w projekcie migracji środowiska raportowego na Power BI oraz projektował i budował raporty zgodnie z roadmapą wdrożenia.",
+      possibleResponsibilities: "Projektowanie i budowanie raportów Power BI, modelowanie danych, optymalizacja wydajności raportów, współpraca z analitykami i użytkownikami kluczowymi.",
+      interviewAngles: [
+        "Doświadczenie w pracy z Power BI i DAX",
+        "Umiejętność modelowania danych i optymalizacji raportów",
+        "Współpraca z zespołem i komunikacja z użytkownikami kluczowymi",
+        "Zrozumienie wymagań biznesowych",
+        "Znajomość technologii chmurowych i administracji Power BI Service"
+      ],
+      questionsToAsk: [
+        "Jakie są najważniejsze cele projektu migracji na Power BI?",
+        "Jak wygląda współpraca zespołu BI z innymi działami w firmie?",
+        "Jakie są możliwości rozwoju zawodowego w firmie?",
+        "Jakie standardy i praktyki są stosowane w projektach BI?",
+        "Jakie wyzwania firma napotyka w obszarze raportowania i analizy danych?"
+      ],
+      risks: [
+        "Brak szczegółowych informacji o kulturze pracy w firmie",
+        "Nieznana struktura zespołu BI",
+        "Brak danych o możliwościach rozwoju kariery",
+        "Nieznane są konkretne technologie używane w projektach poza wymienionymi",
+        "Brak informacji o stabilności zatrudnienia w dłuższej perspektywie"
+      ]
+    },
+    technicalQuestions: [
+      { question: "Jaka jest różnica między CALCULATE a FILTER w DAX?",
+        good: "Rozumiesz, że CALCULATE zmienia kontekst filtra, a FILTER zwraca tabelę.",
+        missing: "Warto dodać konkretny przykład użycia obu razem, np. CALCULATE(SUM(Sales), FILTER(...)).",
+        better: "CALCULATE modyfikuje kontekst filtra, w którym liczona jest miara — może dodawać, usuwać lub zastępować filtry. FILTER zwraca przefiltrowaną tabelę i często jest używany jako argument wewnątrz CALCULATE, gdy potrzebujesz bardziej złożonego warunku niż prosty filtr kolumny." },
+      { question: "Masz tabelę sprzedaży (sale_id, product_id, category, amount, return_flag). Jak policzysz sprzedaż netto (po odjęciu zwrotów) per kategoria w SQL?",
+        good: "Dobre podejście do agregacji z warunkiem na return_flag.",
+        missing: "Pamiętaj o obsłudze NULL-i i o tym, jak zoptymalizowałbyś to przy dużej tabeli (indeks na category).",
+        better: "SELECT category, SUM(CASE WHEN return_flag = 0 THEN amount ELSE -amount END) AS net_sales FROM sales GROUP BY category — z indeksem na (category, return_flag) dla wydajności przy dużych wolumenach." },
+      { question: "Jak zaprojektowałbyś star schema dla danych sprzedażowych z wymiarami Produkt, Klient, Czas, Sklep?",
+        good: "Rozumiesz podział na fact table i dimension tables.",
+        missing: "Wspomnij o surrogate keys i o tym, dlaczego star schema jest wydajniejszy w Power BI niż znormalizowany model.",
+        better: "Jedna fact table (FactSales) z kluczami obcymi do DimProduct, DimCustomer, DimDate, DimStore oraz miarami (quantity, amount). Denormalizacja wymiarów przyspiesza agregacje DAX i upraszcza relacje w modelu." },
+      { question: "Jak zaimplementowałbyś Row-Level Security, żeby regionalny manager widział tylko dane swojego regionu?",
+        good: "To dobry moment, żeby przyznać, że nie masz jeszcze praktycznego doświadczenia z RLS — ale pokaż, że rozumiesz koncepcję.",
+        missing: "Opisz mechanizm: tabelę ról, filtr DAX oparty o USERPRINCIPALNAME(), przypisanie użytkowników do ról w Power BI Service.",
+        better: "Stworzyłbym tabelę mapującą użytkowników (lub grupy AD) do regionów, dodał rolę w Power BI Desktop z filtrem DAX typu [Region] = LOOKUPVALUE(UserRegion[Region], UserRegion[UserPrincipalName], USERPRINCIPALNAME()), a następnie przypisał użytkowników do roli w Power BI Service." }
+    ],
+    businessCase: {
+      scenario: "Po migracji sprzedażowego dashboardu na Power BI, raport pokazuje o 12% niższy przychód miesięczny dla jednej kategorii produktów niż stary raport w Excelu. Interesariusze kwestionują poprawność danych przed pełnym wdrożeniem. Jak podszedłbyś do zbadania tego problemu?",
+      framework: ["Zrozum problem i skalę rozbieżności", "Zdefiniuj dokładnie, co liczy stary vs nowy raport (ta sama definicja KPI?)", "Zwaliduj źródła danych i logikę ETL/transformacji", "Sprawdź filtry i relacje w modelu danych (czy coś jest podwójnie liczone albo ucinane)", "Zawęź do konkretnej kategorii i okresu, w którym pojawia się rozbieżność", "Zidentyfikuj root cause", "Przedstaw rekomendację i plan naprawy"],
+      goodSignals: ["kpi", "definicj", "źródł", "źród", "filtr", "relacj", "root cause", "przyczyn", "model danych", "etl", "dane"]
+    },
+    hrQuestions: [
+      { question: "Tell me about yourself.",
+        tip: "Zbuduj most między architekturą a danymi — pokaż to jako świadomą decyzję, nie przypadek.",
+        sampleAnswer: "Nazywam się Karol Hołda, od ponad czterech lat pracuję jako Junior Data Analyst / BI Developer w vangogi.pl, gdzie na co dzień pracuję z SQL, Power BI i Excelem — buduję raporty sprzedażowe, analizuję dane klientów i automatyzuję powtarzalne procesy przez VBA i Power Query. Wcześniej przez rok pracowałem jako architekt, co dało mi dobre podstawy analitycznego myślenia i precyzji w pracy z danymi. Aplikuję na stanowisko Power BI Developer w Grupa Maspex, bo chcę rozwijać się dalej w kierunku modelowania danych i pracy przy większej skali." },
+      { question: "Masz tytuł magistra architektury, a pracujesz w danych — skąd ta zmiana?",
+        tip: "To pytanie na pewno padnie. Odpowiedz konkretnie: co w architekturze (analiza, precyzja, praca z danymi projektowymi) przełożyło się na data analytics.",
+        sampleAnswer: "Podczas studiów architektonicznych bardzo dobrze odnajdywałem się w pracy z danymi projektowymi, analizą wariantów i precyzyjnym modelowaniem — architektura to w dużej mierze praca ze strukturą i ograniczeniami, podobnie jak modelowanie danych. Po studiach spróbowałem pracy w biurze architektonicznym, ale to praca z SQL, Excelem i Power BI dała mi większą satysfakcję — lubię, gdy dane bezpośrednio przekładają się na decyzje biznesowe. Zdecydowałem się rozwijać w tym kierunku świadomie, a nie przypadkiem." },
+      { question: "Dlaczego chcesz zmienić pracę / dlaczego odchodzisz z vangogi.pl?",
+        tip: "Mów pozytywnie — pokaż czego się nauczyłeś, i dlaczego ta rola to naturalny kolejny krok, nie ucieczka.",
+        sampleAnswer: "W vangogi.pl nauczyłem się bardzo dużo — od SQL i ETL, przez automatyzację w VBA, po budowanie dashboardów w Power BI. To jednak firma mniejszej skali, gdzie pracowałem głównie samodzielnie, bez zespołu BI. Szukam środowiska, w którym będę mógł pracować przy większych, bardziej złożonych modelach danych, uczyć się od bardziej doświadczonych osób i rozwijać się w kierunku Power BI Developera na pełny etat." },
+      { question: "Byłeś dłużej na stanowisku Junior — dlaczego uważasz, że jesteś gotowy na Mid/Senior?",
+        tip: "Odwołaj się do konkretnych projektów (2 lata SQL, portfolio Power BI) zamiast samego tytułu stanowiska.",
+        sampleAnswer: "Rozumiem, że tytuł stanowiska sugeruje mniej doświadczenia niż realnie mam — od ponad czterech lat na co dzień piszę zaawansowane zapytania SQL z JOIN-ami, CTE i subquery, projektuję i utrzymuję procesy ETL, i buduję dashboardy Power BI z zaawansowanym DAX. Dodatkowo rozwijam się poza pracą — mój własny projekt Employee Report w Power BI pokazuje, że potrafię samodzielnie zaprojektować model danych i dashboard od podstaw. Mam świadomość, że formalnie mam rok doświadczenia zawodowego w samym Power BI, ale mój fundament w SQL i modelowaniu danych pozwoli mi szybko nadrobić resztę." },
+      { question: "Dlaczego Grupa Maspex?",
+        tip: "Pokaż, że rozumiesz skalę firmy i migrację raportową jako ciekawy projekt do dołączenia.",
+        sampleAnswer: "Maspex to jeden z największych producentów żywności i napojów w regionie, więc dołączenie do zespołu oznacza pracę z danymi na dużą skalę — to dokładnie ten poziom złożoności, którego szukam. Firma jest też w trakcie migracji środowiska raportowego na Power BI, co oznacza, że będę mógł realnie wpływać na standardy i architekturę raportów od samego początku, a nie tylko utrzymywać istniejące rozwiązania." },
+      { question: "Jaka jest Twoja największa słabość?",
+        tip: "Możesz szczerze wskazać RLS lub brak doświadczenia branżowego w FMCG — ale zakończ tym, co robisz, by to nadrobić.",
+        sampleAnswer: "Szczerze mówiąc, nie mam jeszcze praktycznego doświadczenia z Row-Level Security ani z modelowaniem nazwanym wprost \"star schema\" — mimo że intuicyjnie stosowałem podobne zasady w Power BI. Nadrabiam to świadomie: przeglądam dokumentację dotyczącą RLS i planuję przećwiczyć to na własnym projekcie jeszcze przed rozpoczęciem pracy." }
+    ],
+    readiness: { overall: 63, technical: 68, business: 52, communication: 78, companyKnowledge: 35, cvAlignment: 58, strong: ["SQL", "DAX", "Power BI dashboarding"], needsPrep: ["Row-Level Security", "Star schema", "Domena FMCG"] },
+    interviewPrep: {
+      narrativeEn: "My name is Karol Hołda. For over four years I've worked as a Junior Data Analyst / BI Developer at vangogi.pl, where I work daily with SQL, Power BI, and Excel — building sales reports, analyzing customer data, and automating repetitive processes with VBA and Power Query. Before that, I spent a year working as an architect, which gave me a strong foundation in analytical thinking and precision when working with data. I'm applying for the Power BI Developer role at Grupa Maspex because I want to keep growing toward data modeling and working at a larger scale.",
+      strengthsEn: [
+        { title: "SQL", why: "Two years of writing advanced queries (JOIN, CTE, subquery) — exactly what Maspex is looking for as \"good SQL knowledge.\"" },
+        { title: "DAX & Power BI dashboarding", why: "Measures, calculated columns, interactive dashboards — the core of this role." },
+        { title: "ETL (SSIS, Power Query)", why: "Experience with data pipelines will help with the reporting environment migration mentioned in the posting." },
+        { title: "Business communication", why: "The role requires collaborating with analysts and key users — I have evidence of this from client-facing work." },
+        { title: "Independent practice (portfolio)", why: "The \"Employee Report\" Power BI project shows initiative beyond day-to-day job duties." }
+      ],
+      improveAreasEn: [
+        { title: "Row-Level Security (RLS)", why: "Explicitly required in the posting — no RLS in the CV is a real interview risk." },
+        { title: "1 year of Power BI vs. 2 years required", why: "The biggest seniority risk — the role is Mid/Senior, but formal Power BI experience is about a year." },
+        { title: "Star schema / dimensional modeling", why: "The posting explicitly requires star schema modeling — the CV shows DAX modeling but doesn't name it directly." },
+        { title: "Git / Azure DevOps for BI", why: "Nice-to-have, but increasingly expected for teamwork on reports." },
+        { title: "Microsoft Fabric", why: "A very new platform — nice-to-have, few candidates have experience with it." }
+      ],
+      questionsToAskEn: [
+        "What are the most important goals of the Power BI migration project?",
+        "How does the BI team collaborate with other departments in the company?",
+        "What professional development opportunities are there at the company?",
+        "What standards and practices are used in BI projects?",
+        "What challenges does the company face in reporting and data analysis?"
+      ]
+    }
+  };
+
+  const DEFAULT_QUICK_ACTIONS = [
+    { label: "Top matching roles", prompt: "What are my top matching roles on the board right now?" },
+    { label: "Remote opportunities", prompt: "Show me remote opportunities that fit my profile." },
+    { label: "Technical questions", prompt: "Ask me technical questions to prep for interviews in my stack." },
+    { label: "STAR behavioral story", prompt: "Help me prepare a STAR behavioral story from my experience." },
+    { label: "Study plan", prompt: "Build me a study plan for my AWS certification goal." },
+    { label: "🗓 Log interview details", action: "openTimeline" }
+  ];
+
+  const DEMO_QUICK_ACTIONS = [
+    { label: "📄 Analiza oferty", prompt: "Pokaż pełną analizę oferty" },
+    { label: "🏢 Analiza firmy", prompt: "Pokaż pełną analizę firmy" },
+    { label: "Analyze my match", prompt: "Analyze my match" },
+    { label: "Show my gaps", prompt: "Show me my gaps" },
+    { label: "Tell me about Maspex", prompt: "Tell me about Grupa Maspex" },
+    { label: "What should I study?", prompt: "What should I study?" },
+    { label: "Start technical interview", prompt: "Start technical interview" },
+    { label: "Give me a business case", prompt: "Give me a business case" },
+    { label: "Start mock interview", prompt: "Start mock interview" },
+    { label: "🎤 Interview Prep", prompt: "Pokaż interview prep" },
+    { label: "🗓 Log interview details", action: "openTimeline" }
+  ];
+
+  const chats = {
+    job1: {
+      title: "https://www.pracuj.pl/praca/anal...",
+      type: "job",
+      messages: [
+        {role:"user", text:"Analyze this job offer and tell me if it fits my profile."},
+        {role:"assistant", text:"**Data Analyst — insurance sector (Warsaw, hybrid)**\n\nFit: moderate. The role leans heavily on SQL and BI tooling (Power BI) rather than full-stack engineering — it doesn't line up closely with your React/Node.js/TypeScript background.\n\nIf you're exploring adjacent roles, your PostgreSQL and data-modeling experience from the e-commerce platform role would transfer, but seniority expectations here are mid-level, below your current level."}
+      ]
+    },
+    matches: {
+      title: "Which jobs on the board have the...",
+      messages: [
+        {role:"user", text:"Which jobs on the board have the strongest match with my skills and seniority? Explain why."},
+        {role:"assistant", text:"Based on your background, here are your top 3 matches:\n\n**1. Senior Full-Stack Engineer — FinCore** (Remote)\nStrong match on TypeScript, React, and fintech experience. They need someone to own the payments infrastructure.\n\n**2. Tech Lead — ShopFlow** (Hybrid, Warsaw)\nYour 7 years and AWS cert align well. Leading a team of 5 engineers.\n\n**3. Backend Engineer — DataBridge** (Remote)\nPostgreSQL and Node.js are their core stack. Startup, fast-paced environment."},
+        {role:"user", text:"Help me outline a STAR-format response for a challenging production incident or system architecture decision."},
+        {role:"assistant", text:"Here are 3 key areas to prepare for:\n\n**System Design**: Expect questions on scaling a Node.js service — think horizontal scaling, Redis caching, and database sharding.\n\n**Incident Response**: Walk through a real production incident using STAR — Situation (payments latency spike), Task (restore SLA under pressure), Action (added Redis caching + query optimisation), Result (40% latency reduction, no repeat incidents).\n\n**Trade-offs**: Be ready to justify the monolith → microservices migration — what you gained (deploy frequency) versus what got harder (distributed debugging)."}
+      ]
+    },
+    study1: {
+      title: "AWS Solutions Architect Associate — exam prep",
+      type: "study",
+      messages: [
+        {role:"user", text:"I want to prepare for the AWS Solutions Architect Associate exam based on my current experience. Where should I focus?"},
+        {role:"assistant", text:"Good news — your production AWS usage (deploying the fintech payments infra) already covers a chunk of the exam. Here's where to focus:\n\n**Strong already**: compute (EC2), basic networking, IAM fundamentals — you've used these hands-on.\n\n**Needs work**: multi-region resilience patterns, well-architected framework trade-offs, and cost-optimisation scenarios — these show up heavily in scenario-based questions and go beyond day-to-day usage.\n\nAsk me for a week-by-week study plan or some flashcards whenever you're ready."}
+      ]
+    }
+  };
+
+  /* ---------------- helpers ---------------- */
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  function openOverlay(modalId){
+    $("#overlay").classList.remove("hidden");
+    $$(".modal").forEach(m => m.classList.add("hidden"));
+    $("#"+modalId).classList.remove("hidden");
+  }
+  function closeOverlay(){
+    $("#overlay").classList.add("hidden");
+  }
+
+  function mdToHtml(text){
+    return text
+      .split("\n\n").map(p => {
+        if(p.trim() === "---") return "<hr style='border:none;border-top:1px solid var(--border);margin:14px 0;'/>";
+        return "<p style='margin:0 0 12px;'>"+p.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br/>")+"</p>";
+      }).join("");
+  }
+
+  /* ---------------- sidebar: chat list ---------------- */
+  function renderChatList(){
+    const list = $("#chatList");
+    list.innerHTML = "";
+    Object.keys(chats).forEach(key => {
+      const c = chats[key];
+      const row = document.createElement("div");
+      row.className = "chat-item-row" + (key === state.activeChat ? " active" : "");
+
+      const item = document.createElement("div");
+      item.className = "chat-item";
+      const icon = key === "job1" ? "🔗 " : (c.isDemo ? "✨ " : (c.type === "study" ? "📚 " : "💬 "));
+      item.textContent = icon + c.title;
+      item.addEventListener("click", () => { state.activeChat = key; renderChatList(); refreshChatView(); });
+      row.appendChild(item);
+      list.appendChild(row);
+    });
+    $("#folderCount").textContent = Object.keys(chats).length;
+  }
+
+  /* ---------------- notebook append helper (used by the per-message "Zanotuj" button) ---------------- */
+  function appendNoteBlock(key, block){
+    const c = chats[key];
+    if(!c) return;
+    c.notebook = c.notebook ? c.notebook + "\n\n---\n\n" + block : block;
+    if(state.activeChat === key) renderNotebook();
+  }
+
+  /* ---------------- messages ---------------- */
+  function renderMessages(){
+    const box = $("#messages");
+    box.innerHTML = "";
+    const chat = chats[state.activeChat];
+    chat.messages.forEach((m, idx) => {
+      if(m.role === "user"){
+        const div = document.createElement("div");
+        div.className = "msg-user";
+        div.innerHTML = `<div>${m.text}</div><div class="msg-actions"><button data-copy="${idx}">⧉ Copy</button></div>`;
+        box.appendChild(div);
+      } else {
+        const div = document.createElement("div");
+        div.className = "msg-assistant";
+        div.dataset.raw = m.text;
+        div.dataset.mode = "preview";
+        div.dataset.renderAs = m.renderAs || "";
+        const contentHtml = m.renderAs ? m.text : mdToHtml(m.text);
+        div.innerHTML = `<div class="content">${contentHtml}</div>
+          <div class="msg-actions">
+            <button data-source="${idx}">&lt;&gt; Source</button>
+            <button data-copy="${idx}">⧉ Copy</button>
+            <button data-regen="${idx}">↻ Regenerate</button>
+            <button data-addnote="${idx}">📝 Zanotuj</button>
+          </div>`;
+        box.appendChild(div);
+      }
+    });
+    box.scrollTop = box.scrollHeight;
+    wireQaReveal(box);
+    wireOfferAnalysis(box);
+    wireCompanyAnalysis(box);
+    wireInterviewPrepCard(box);
+
+    box.querySelectorAll("[data-source]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const wrap = btn.closest(".msg-assistant");
+        const contentDiv = wrap.querySelector(".content");
+        const isRich = !!wrap.dataset.renderAs;
+        if(wrap.dataset.mode === "preview"){
+          wrap.dataset.mode = "source";
+          contentDiv.innerHTML = `<div class="source-block"><div class="source-label"><span>Raw ${isRich ? "HTML" : "markdown"} / source</span><span>${wrap.dataset.raw.length} chars</span></div>${wrap.dataset.raw.replace(/</g,"&lt;")}</div>`;
+          btn.innerHTML = "◎ Preview";
+        } else {
+          wrap.dataset.mode = "preview";
+          contentDiv.innerHTML = isRich ? wrap.dataset.raw : mdToHtml(wrap.dataset.raw);
+          if(isRich){ wireQaReveal(contentDiv); wireOfferAnalysis(contentDiv); wireCompanyAnalysis(contentDiv); wireInterviewPrepCard(contentDiv); }
+          btn.innerHTML = "&lt;&gt; Source";
+        }
+      });
+    });
+    box.querySelectorAll("[data-copy]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const txt = btn.closest(".msg-user, .msg-assistant").dataset.raw || btn.closest(".msg-user, .msg-assistant").querySelector(".content, div").innerText;
+        navigator.clipboard && navigator.clipboard.writeText(txt).catch(()=>{});
+        const old = btn.innerHTML; btn.innerHTML = "✓ Copied"; setTimeout(()=>btn.innerHTML = old, 1200);
+      });
+    });
+    box.querySelectorAll("[data-regen]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const wrap = btn.closest(".msg-assistant");
+        const isRich = !!wrap.dataset.renderAs;
+        const contentDiv = wrap.querySelector(".content");
+        contentDiv.innerHTML = "<p style='color:var(--text-muted);'>Regenerating…</p>";
+        setTimeout(() => {
+          contentDiv.innerHTML = isRich ? wrap.dataset.raw : mdToHtml(wrap.dataset.raw);
+          if(isRich){ wireQaReveal(contentDiv); wireOfferAnalysis(contentDiv); wireCompanyAnalysis(contentDiv); wireInterviewPrepCard(contentDiv); }
+        }, 500);
+      });
+    });
+    box.querySelectorAll("[data-addnote]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const wrap = btn.closest(".msg-assistant");
+        const key = state.activeChat;
+        const c = chats[key];
+        if(!c) return;
+        const isRich = !!wrap.dataset.renderAs;
+        const raw = isRich ? wrap.querySelector(".content").innerText.trim() : wrap.dataset.raw;
+        const title = raw.split("\n")[0].replace(/\*\*/g, "").slice(0, 80);
+        appendNoteBlock(key, `## ${c.title}\n### ${title}\n\n${raw}`);
+        const old = btn.innerHTML;
+        btn.innerHTML = "✓ Dodano";
+        setTimeout(() => { btn.innerHTML = old; }, 1500);
+      });
+    });
+  }
+
+  function scriptedReply(userText){
+    const t = userText.toLowerCase();
+    if(t.includes("remote")){
+      return "Filtering the board for remote roles that match your profile:\n\n**Full-Stack Developer — Insurly** (Remote, EU) — 59% match, React/TypeScript/Node.js.\n\n**Founding Engineer — Recruito** (Remote, EU) — 49% match, equity-heavy, early-stage.\n\nWant me to draft outreach messages for either of these?";
+    }
+    if(t.includes("technical") || t.includes("interview")){
+      return "A few technical questions to rehearse, based on your stack:\n\n1. How would you design rate limiting for a public payments API?\n2. Walk me through a caching strategy for a read-heavy Node.js service.\n3. What trade-offs did you weigh migrating from a monolith to microservices?";
+    }
+    if(t.includes("star") || t.includes("behavioral")){
+      return "Let's build a STAR story. Based on your experience, a strong candidate is the **payments latency incident** at the fintech startup:\n\n**Situation** — API latency was breaching SLA during peak load.\n**Task** — Restore performance without downtime.\n**Action** — Introduced Redis caching and optimised slow queries.\n**Result** — 40% latency reduction, no recurrence.";
+    }
+    if(t.includes("study plan") || t.includes("certification") || t.includes("exam")){
+      return "Here's a 4-week study plan outline based on your current profile:\n\n**Week 1 — Foundations**: Review the fundamentals you already use day-to-day, and take one practice quiz to baseline your score.\n\n**Week 2-3 — Close the gaps**: Focus on the domains furthest from your production experience — these are usually the highest-leverage study time.\n\n**Week 4 — Practice exams**: Two full-length timed practice exams, reviewing every wrong answer before booking the real one.";
+    }
+    if(t.includes("top matching") || t.includes("match")){
+      return "Based on your background, here are your top matches on the board right now:\n\n**1. Senior Backend Engineer — Nordwave Payments** — 80% match.\n**2. Frontend Engineer (React) — Latka Studio** — 64% match.\n**3. Full-Stack Developer — Insurly** — 59% match.\n\nOpen the Job Role board to see full details and tags.";
+    }
+    return "Noted — in demo mode responses are scripted rather than generated live, so this is a representative sample answer. Connect a real API key outside demo mode to get responses tailored to this exact question.";
+  }
+
+  function pushAssistantReply(chat, reply){
+    if(reply && typeof reply === "object"){
+      chat.messages.push({role:"assistant", text: reply.html, renderAs: reply.renderAs});
+    } else {
+      chat.messages.push({role:"assistant", text: reply});
+    }
+  }
+
+  function sendMessage(text){
+    if(!text || !text.trim()) return;
+    let chat = chats[state.activeChat];
+    const trimmed = text.trim();
+    const displayText = trimmed.length > 600 ? trimmed.slice(0, 600) + "…" : trimmed;
+
+    // Natural entry point: user opens a fresh chat and pastes a job offer link or the offer text as the first message.
+    const freshChat = !chat.isDemo && chat.messages.length === 0;
+    const pastedOfferUrl = freshChat && looksLikeMaspexOfferUrl(trimmed);
+    const pastedOfferText = freshChat && !pastedOfferUrl && looksLikeJobOffer(trimmed);
+    const pastedOffer = pastedOfferUrl || pastedOfferText;
+
+    if(pastedOfferUrl || (pastedOfferText && looksLikeMaspexOffer(trimmed))){
+      const emptyPlaceholderKey = state.activeChat !== "demo" ? state.activeChat : null;
+      if(!chats.demo) chats.demo = makeDemoChat();
+      const isFirstEverMessage = chats.demo.messages.length === 0;
+      if(emptyPlaceholderKey) delete chats[emptyPlaceholderKey];
+      state.activeChat = "demo";
+      chat = chats.demo;
+      chat.messages.push({role:"user", text: displayText});
+      enterAppTileMode();
+      renderChatList();
+      renderMessages();
+      renderNotebook();
+      renderPromptPills();
+      renderAppInfoPanel();
+      $("#composerInput").value = "";
+      autoGrow();
+      setTimeout(() => {
+        pushAssistantReply(chat, isFirstEverMessage ? demoOpening() : demoReply(chat, trimmed));
+        renderMessages();
+        renderAppInfoPanel();
+      }, 550);
+      return;
+    }
+
+    chat.messages.push({role:"user", text: displayText});
+    renderMessages();
+    $("#composerInput").value = "";
+    autoGrow();
+    setTimeout(() => {
+      let reply;
+      if(pastedOffer){
+        reply = `To wygląda na ofertę pracy. W tej wersji prototypu mam pełną analizę (dopasowanie CV, luki, plan nauki, mock interview) przygotowaną dla jednego, konkretnego przykładu — **Power BI Developer w Grupa Maspex**. Wklej link do tej oferty (albo jej treść), żeby zobaczyć pełny workflow, albo kliknij „✨ Try Demo" w sidebarze.`;
+      } else if(chat.isDemo){
+        reply = demoReply(chat, text);
+      } else {
+        reply = scriptedReply(text);
+      }
+      pushAssistantReply(chat, reply);
+      renderMessages();
+      if(chat.isDemo) renderAppInfoPanel();
+    }, 550);
+  }
+
+  /* ---------------- profile lock / build flow ---------------- */
+  function updateProfileUI(){
+    if(state.profileBuilt){
+      $("#profileAvatar").textContent = "✓";
+      $("#profileAvatar").classList.add("ready");
+      $("#profileTitle").textContent = "Senior Full-Stack Engineer";
+      $("#profileSub").textContent = "Tap to view or edit";
+    } else {
+      $("#profileAvatar").textContent = "🔒";
+      $("#profileAvatar").classList.remove("ready");
+      $("#profileTitle").textContent = "Profile locked";
+      $("#profileSub").textContent = "Build your profile to unlock";
+    }
+    safeStorage.set("cvs_profileBuilt", JSON.stringify(state.profileBuilt));
+  }
+
+  function renderProtectedList(){
+    const el = $("#protectedList");
+    el.innerHTML = "";
+    state.protectedItems.forEach((item, i) => {
+      const div = document.createElement("div");
+      div.className = "protected-item" + (item.on ? "" : " off");
+      div.innerHTML = `<div class="row1"><span class="dot"></span>${item.label}</div>
+        <div class="row2"><span class="masked">${item.masked} (${item.on ? "Hidden from AI" : "Visible to AI"})</span>
+        <span class="acts"><button data-toggle="${i}" title="Toggle">${item.on ? "🚫" : "👁"}</button><button data-del="${i}" title="Remove">🗑</button></span></div>`;
+      el.appendChild(div);
+    });
+    const activeCount = state.protectedItems.filter(i=>i.on).length;
+    $("#activeCount").textContent = activeCount + " active";
+    $("#protectedCount").textContent = state.protectedItems.length;
+    $("#footerActiveCount").textContent = activeCount;
+    $("#footerTotalCount").textContent = state.protectedItems.length;
+    renderCvPreview();
+
+    el.querySelectorAll("[data-toggle]").forEach(btn => btn.addEventListener("click", () => {
+      const i = +btn.dataset.toggle; state.protectedItems[i].on = !state.protectedItems[i].on; renderProtectedList();
+    }));
+    el.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", () => {
+      const i = +btn.dataset.del; state.protectedItems.splice(i,1); renderProtectedList();
+    }));
+  }
+
+  function renderCvPreview(){
+    const bars = state.protectedItems.filter(i=>i.on).map((_, k) => {
+      const widths = [70,50,90,40];
+      return `<span class="redact-bar" style="width:${widths[k % widths.length]}px;"></span>`;
+    }).join(" ");
+    $("#cvPreview").innerHTML = `<div style="margin-bottom:10px;">${bars || "<i style='color:var(--text-muted);'>No items hidden — everything below is visible to the AI.</i>"}</div>
+      <div style="font-family:ui-monospace,monospace;font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">PESEL: 9${state.protectedItems.find(i=>i.label==="National ID" && i.on) ? "██████████" : "2051512345"}</div>
+      <div>Senior Full-Stack Engineer with 7 years of experience in fintech and e-commerce environments.</div>`;
+  }
+
+  /* ---------------- job board ---------------- */
+  function renderJobList(){
+    const q = $("#jobSearchInput").value.trim().toLowerCase();
+    const mode = $("#jobModeFilter").value;
+    const list = $("#jobList");
+    list.innerHTML = "";
+    jobs
+      .filter(j => !mode || j.mode === mode)
+      .filter(j => !q || (j.title+" "+j.company+" "+j.tags.join(" ")).toLowerCase().includes(q))
+      .sort((a,b) => b.match - a.match)
+      .forEach(j => {
+        const div = document.createElement("div");
+        div.className = "job-card";
+        div.innerHTML = `<div class="job-card-top"><div><div class="title">${j.title}</div><div class="company">${j.company}</div></div><span class="match-badge">${j.match}% match</span></div>
+          <div class="job-loc">📍 ${j.loc} · ${j.mode} · ${j.salary}</div>
+          <div class="job-tags">${j.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>`;
+        div.addEventListener("click", () => openOrCreateJobTarget(j));
+        list.appendChild(div);
+      });
+    if(!list.children.length){
+      list.innerHTML = "<p style='color:var(--text-muted);font-size:13px;text-align:center;padding:20px;'>No roles match your filters.</p>";
+    }
+  }
+
+  /* ---------------- notebook (per-chat summary panel) ---------------- */
+  function renderNotebook(){
+    const key = state.activeChat;
+    const c = chats[key];
+    if(!c) return;
+    $("#nbSub").textContent = c.title;
+    $("#nbTextarea").value = c.notebook || "";
+    $("#nbSaved").textContent = "";
+  }
+
+  function generateSummary(key){
+    const c = chats[key];
+    const assistantMsgs = c.messages.filter(m => m.role === "assistant");
+    if(!assistantMsgs.length){
+      return "No assistant replies yet in this chat — write your own notes, or come back once there's something to summarize.";
+    }
+    const topics = new Set();
+    assistantMsgs.forEach(m => {
+      (m.text.match(/\*\*(.+?)\*\*/g) || []).forEach(x => topics.add(x.replace(/\*\*/g, "")));
+    });
+    const lastMsg = assistantMsgs[assistantMsgs.length - 1].text.split("\n\n")[0].replace(/\*\*/g, "");
+    let out = "Summary (auto-generated in demo mode):\n\n";
+    out += `- ${c.messages.length} message${c.messages.length === 1 ? "" : "s"} in this chat.\n`;
+    if(topics.size) out += `- Key points: ${Array.from(topics).slice(0, 6).join(", ")}.\n`;
+    out += `- Most recent takeaway: ${lastMsg}`;
+    return out;
+  }
+
+  /* ---------------- shared refresh for the currently active chat ---------------- */
+  function refreshChatView(){
+    renderMessages();
+    renderNotebook();
+    renderPromptPills();
+    renderAppInfoPanel();
+    renderTimelineMenu();
+  }
+
+  /* ---------------- per-chat application timeline (dates + contacts), synced live into Notebook ---------------- */
+  const TIMELINE_FIELDS = [
+    ["applied", "Application date"],
+    ["phoneScreen", "Phone / HR interview"],
+    ["technical", "Technical interview"],
+    ["recruiterPhone", "Recruiter phone"],
+    ["recruiterEmail", "Recruiter email"],
+    ["devPhone", "Developer / hiring manager phone"],
+    ["devEmail", "Developer / hiring manager email"]
+  ];
+
+  function renderTimelineMenu(){
+    const chat = chats[state.activeChat];
+    const tl = (chat && chat.timeline) || {};
+    $("#tlApplied").value = tl.applied || "";
+    $("#tlPhoneScreen").value = tl.phoneScreen || "";
+    $("#tlTechnical").value = tl.technical || "";
+    $("#tlRecruiterPhone").value = tl.recruiterPhone || "";
+    $("#tlRecruiterEmail").value = tl.recruiterEmail || "";
+    $("#tlDevPhone").value = tl.devPhone || "";
+    $("#tlDevEmail").value = tl.devEmail || "";
+    $("#timelineSaved").textContent = "";
+  }
+
+  function timelineNoteBlock(chat){
+    const tl = chat.timeline || {};
+    const lines = TIMELINE_FIELDS
+      .filter(([field]) => tl[field])
+      .map(([field, label]) => `- ${label}: ${tl[field]}`);
+    if(!lines.length) return null;
+    return `## Timeline\n### ${chat.title}\n\n${lines.join("\n")}`;
+  }
+
+  function syncTimelineToNotebook(chat){
+    const block = timelineNoteBlock(chat);
+    const current = chat.notebook || "";
+    const SEP = "\n\n---\n\n";
+    let rest = current;
+    if(current.startsWith("## Timeline")){
+      const sepIdx = current.indexOf(SEP);
+      rest = sepIdx === -1 ? "" : current.slice(sepIdx + SEP.length);
+    }
+    rest = rest.trim();
+    chat.notebook = block ? (rest ? `${block}${SEP}${rest}` : block) : rest;
+  }
+
+  function saveTimelineField(field, value){
+    const chat = chats[state.activeChat];
+    if(!chat) return;
+    if(!chat.timeline) chat.timeline = {};
+    chat.timeline[field] = value;
+    syncTimelineToNotebook(chat);
+    renderNotebook();
+    $("#timelineSaved").textContent = "Saved to Notebook";
+    clearTimeout(window._tlSavedTimeout);
+    window._tlSavedTimeout = setTimeout(() => { $("#timelineSaved").textContent = ""; }, 1500);
+  }
+
+  function renderPromptPills(){
+    const container = $("#promptPills");
+    const chat = chats[state.activeChat];
+    const items = (chat && chat.quickActions) || DEFAULT_QUICK_ACTIONS;
+    container.innerHTML = "";
+    items.forEach(qa => {
+      const btn = document.createElement("button");
+      btn.textContent = qa.label;
+      if(qa.action === "openTimeline"){
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          renderTimelineMenu();
+          $("#timelineMenu").classList.add("open");
+        });
+      } else {
+        btn.addEventListener("click", () => sendMessage(qa.prompt));
+      }
+      container.appendChild(btn);
+    });
+  }
+
+  function renderAppInfoPanel(){
+    const chat = chats[state.activeChat];
+    const panel = $("#appInfoPanel");
+    if(!chat || !chat.appInfo){ panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+    const info = chat.appInfo;
+    const r = chat.demoReadiness || info.readiness;
+    $("#appInfoCompany").textContent = info.company;
+    $("#appInfoPosition").textContent = info.position;
+    $("#appInfoMeta").textContent = info.meta;
+    $("#appInfoReadinessFill").style.width = r.overall + "%";
+    $("#appInfoReadinessLabel").textContent = "Readiness: " + r.overall + "%";
+    $("#appInfoStrong").innerHTML = r.strong.map(s=>`<span class="tag">${s}</span>`).join("");
+    $("#appInfoNeedsPrep").innerHTML = r.needsPrep.map(s=>`<span class="tag">${s}</span>`).join("");
+  }
+
+  /* ---------------- job board target: find-or-create the one chat for this offer ---------------- */
+  function openOrCreateJobTarget(job){
+    let existingKey = Object.keys(chats).find(k => chats[k].jobId === job.id);
+    if(!existingKey){
+      existingKey = "board_" + job.id;
+      chats[existingKey] = {
+        title: job.title + " — " + job.company,
+        type: "job",
+        jobId: job.id,
+        messages: [
+          {role:"user", text:`Tell me how well the "${job.title}" role at ${job.company} matches my profile, and how I should position myself.`},
+          {role:"assistant", text:`This role is a **${job.match}% match** based on your profile.\n\nOverlapping skills: ${job.tags.slice(0,4).join(", ")}.\n\n${job.match < 60 ? "That's a below-average match — double-check the must-have requirements before applying." : "Solid overlap — ask me for a STAR story or a professional narrative tailored to this role whenever you're ready."}`}
+        ]
+      };
+    }
+    state.activeChat = existingKey;
+    renderChatList();
+    refreshChatView();
+    closeOverlay();
+  }
+
+  /* ---------------- Demo: Personal AI Interview Coach walkthrough ---------------- */
+  function demoOpening(){
+    const d = DEMO_DATA;
+    const topStrengths = d.strengths.slice(0, 3).map(s => s.title).join(", ");
+    const highGaps = d.gaps.filter(g => g.priority === "HIGH").map(g => g.title).join(" i ");
+    return `Cześć ${d.candidate.firstName} — przeanalizowałem ofertę **${d.job.position}** w **${d.job.company}** razem z Twoim CV.\n\nMasz bardzo dobre dopasowanie w: ${topStrengths}.\n\nSą też obszary, które mogą być ryzykiem na rozmowie: **${highGaps}**.\n\nMogę przeprowadzić Cię przez całe przygotowanie — dopasowanie, luki, czego szuka ${d.job.company}, plan nauki, pytania techniczne, business case albo pełną symulację rozmowy. Pytaj, albo użyj przycisków poniżej.`;
+  }
+
+  function demoMatchAnswer(){
+    const d = DEMO_DATA;
+    return `Oto dopasowanie Twojego CV do wymagań **${d.job.company}**:\n\n` +
+      d.match.map(m => `**${m.req}** — ${m.status}\n${m.note}`).join("\n\n");
+  }
+
+  function demoStrengthsAnswer(){
+    const d = DEMO_DATA;
+    return "Twoje najmocniejsze strony pod tę rolę:\n\n" +
+      d.strengths.map(s => `**${s.title}** — ${s.why}`).join("\n\n");
+  }
+
+  function demoGapsAnswer(){
+    const d = DEMO_DATA;
+    const order = ["HIGH", "MEDIUM", "LOW"];
+    return order.map(p => {
+      const items = d.gaps.filter(g => g.priority === p);
+      if(!items.length) return "";
+      return `**${p} PRIORITY**\n\n` + items.map(g =>
+        `**${g.title}**\n${g.why}\nCo warto wiedzieć: ${g.whatToKnow}\nMożliwe pytanie: „${g.question}"`
+      ).join("\n\n");
+    }).filter(Boolean).join("\n\n");
+  }
+
+
+  /* ---------------- Study plan: generated straight from the gap list ("Show my gaps") ---------------- */
+  const GAP_PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+  const GAP_PRIORITY_LABEL = { HIGH: "Wysoka", MEDIUM: "Średnia", LOW: "Niska" };
+
+  function gapsByPriority(){
+    return [...DEMO_DATA.gaps].sort((a, b) => GAP_PRIORITY_ORDER[a.priority] - GAP_PRIORITY_ORDER[b.priority]);
+  }
+
+  function buildLearningPlanFromGaps(gaps){
+    const plan = gaps.map((g, i) => ({
+      day: `Dzień ${i + 1}`,
+      focus: `${g.title} — ${g.whatToKnow}`
+    }));
+    plan.push({ day: `Dzień ${gaps.length + 1}`, focus: "HR + behavioral — narracja o zmianie z architektury na dane, historia w vangogi.pl." });
+    plan.push({ day: `Dzień ${gaps.length + 2}`, focus: "Mock interview — pełna symulacja rozmowy (10 pytań w zakładce Mock Interview)." });
+    return plan;
+  }
+
+  function demoStudyPlanAnswer(){
+    const gaps = gapsByPriority();
+    const priorities = gaps.map(g =>
+      `**${g.title}** (priorytet: ${GAP_PRIORITY_LABEL[g.priority]})\n${g.whatToKnow}\nMożliwe pytanie na rozmowie: „${g.question}"`
+    ).join("\n\n");
+    const plan = buildLearningPlanFromGaps(gaps).map(l => `**${l.day}** — ${l.focus}`).join("\n");
+    return `Twój plan nauki wynika bezpośrednio z luk wykrytych w "Show my gaps":\n\n${priorities}\n\n---\n\n**Plan na ${gaps.length + 2} dni:**\n\n${plan}`;
+  }
+
+  function demoFocusFive(){
+    const top = gapsByPriority().slice(0, 5).map((g, i) => `${i + 1}. **${g.title}** — ${g.whatToKnow}`).join("\n");
+    return `Jeśli rozmowa jest jutro, skup się na tych rzeczach (od najbardziej krytycznej luki):\n\n${top}`;
+  }
+
+  function demoReadinessAnswer(chat){
+    const r = chat.demoReadiness || DEMO_DATA.readiness;
+    return `**Interview Readiness: ${r.overall}%**\n\nTechnical: ${r.technical}% · Business: ${r.business}% · Communication: ${r.communication}% · Company knowledge: ${r.companyKnowledge}% · CV alignment: ${r.cvAlignment}%\n\n**Mocne strony:** ${r.strong.join(", ")}\n**Do przygotowania:** ${r.needsPrep.join(", ")}`;
+  }
+
+  function bumpReadiness(chat, field, amount){
+    if(!chat.demoReadiness) chat.demoReadiness = JSON.parse(JSON.stringify(DEMO_DATA.readiness));
+    chat.demoReadiness[field] = Math.min(100, chat.demoReadiness[field] + amount);
+    const parts = ["technical", "business", "communication", "companyKnowledge", "cvAlignment"];
+    chat.demoReadiness.overall = Math.round(parts.reduce((s, k) => s + chat.demoReadiness[k], 0) / parts.length);
+    renderAppInfoPanel();
+  }
+
+  function demoTechnicalQuestionText(i){
+    const q = DEMO_DATA.technicalQuestions[i];
+    return `**Pytanie techniczne ${i + 1}/${DEMO_DATA.technicalQuestions.length}:**\n\n${q.question}`;
+  }
+
+  function demoTechnicalStep(chat, answerText){
+    const ds = chat.demoState;
+    const q = DEMO_DATA.technicalQuestions[ds.qIndex];
+    const feedback = `Dzięki za odpowiedź.\n\n✅ **Dobrze:** ${q.good}\n⚠️ **Czego zabrakło:** ${q.missing}\n\n**Lepsza odpowiedź:** ${q.better}`;
+    ds.qIndex++;
+    bumpReadiness(chat, "technical", 3);
+    if(ds.qIndex < DEMO_DATA.technicalQuestions.length){
+      return feedback + `\n\n---\n\n${demoTechnicalQuestionText(ds.qIndex)}`;
+    }
+    ds.mode = null;
+    return feedback + `\n\n---\n\nTo już wszystkie pytania techniczne, które dla Ciebie przygotowałem. Chcesz przejść do **business case**, **HR** czy **mock interview**?`;
+  }
+
+  function demoBusinessCaseIntro(){
+    return `**Business Case:**\n\n${DEMO_DATA.businessCase.scenario}\n\nJak podszedłbyś do zbadania tego problemu? Opisz swoje kroki.`;
+  }
+
+  function demoBusinessStep(chat, answerText){
+    const bc = DEMO_DATA.businessCase;
+    const t = answerText.toLowerCase();
+    const hits = bc.goodSignals.filter(sig => t.includes(sig));
+    const coverage = hits.length >= 3 ? "Solidne podejście" : (hits.length >= 1 ? "Dobry kierunek, ale niepełny" : "Zbyt ogólne jak na to pytanie");
+    chat.demoState.mode = null;
+    bumpReadiness(chat, "business", 4);
+    return `${coverage}. Oto pełny schemat, którego szukałbym w Twojej odpowiedzi:\n\n${bc.framework.map((s, i) => `${i + 1}. ${s}`).join("\n")}\n\nNa prawdziwej rozmowie nie musisz wymienić wszystkiego naraz — zacznij od zdefiniowania KPI i walidacji danych, zanim przejdziesz do segmentacji.`;
+  }
+
+  function demoHrQuestionText(i){
+    const q = DEMO_DATA.hrQuestions[i];
+    return `**Pytanie HR ${i + 1}/${DEMO_DATA.hrQuestions.length}:**\n\n${q.question}\n\n_Wskazówka: ${q.tip}_`;
+  }
+
+  function demoHrStep(chat, answerText){
+    const ds = chat.demoState;
+    const feedback = `Dobra odpowiedź jako punkt wyjścia. Pamiętaj o metodzie STAR — Situation, Task, Action, **Result**. Kandydaci najczęściej pomijają właśnie Result — dodaj konkretny, mierzalny efekt.`;
+    ds.qIndex++;
+    bumpReadiness(chat, "communication", 2);
+    if(ds.qIndex < DEMO_DATA.hrQuestions.length){
+      return feedback + `\n\n---\n\n${demoHrQuestionText(ds.qIndex)}`;
+    }
+    ds.mode = null;
+    return feedback + `\n\n---\n\nTo koniec przygotowanych pytań HR. Chcesz spróbować **mock interview** albo wrócić do **business case**?`;
+  }
+
+  /* ---------------- Mock interview: 10 ready questions, click to reveal the answer ---------------- */
+  function mockInterviewBank(){
+    const hr = DEMO_DATA.hrQuestions.map(q => ({ question: q.question, answer: q.sampleAnswer, category: "HR" }));
+    const tech = DEMO_DATA.technicalQuestions.map(q => ({ question: q.question, answer: q.better, category: "Techniczne" }));
+    return hr.concat(tech);
+  }
+
+  function buildMockInterviewListHtml(){
+    const bank = mockInterviewBank();
+    const cards = bank.map((item, i) => `
+      <div class="qa-reveal" data-qa-index="${i}">
+        <div class="qa-reveal-head">
+          <span class="qa-reveal-num">${i + 1}</span>
+          <span class="qa-reveal-cat">${item.category}</span>
+          <span class="qa-reveal-q">${item.question}</span>
+        </div>
+        <div class="qa-reveal-actions">
+          <button type="button" class="qa-reveal-toggle">Pokaż gotową odpowiedź</button>
+          <button type="button" class="qa-reveal-note">📝 Zanotuj</button>
+        </div>
+        <div class="qa-reveal-answer">${item.answer}</div>
+      </div>`).join("");
+    return `<p style="margin:0 0 14px;">Oto 10 pytań, których mogę się spodziewać na rozmowie w ${DEMO_DATA.job.company} — kliknij, żeby zobaczyć gotową odpowiedź dla każdego.</p>${cards}`;
+  }
+
+  function wireQaReveal(scope){
+    scope.querySelectorAll(".qa-reveal-toggle").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const card = btn.closest(".qa-reveal");
+        const nowRevealed = card.classList.toggle("revealed");
+        btn.textContent = nowRevealed ? "Ukryj odpowiedź" : "Pokaż gotową odpowiedź";
+      });
+    });
+    scope.querySelectorAll(".qa-reveal-note").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const card = btn.closest(".qa-reveal");
+        const bank = mockInterviewBank();
+        const item = bank[+card.dataset.qaIndex];
+        if(!item) return;
+        const chat = chats[state.activeChat];
+        appendNoteBlock(state.activeChat, `## ${chat.title}\n### ${item.category}: ${item.question}\n\n${item.answer}`);
+        const old = btn.textContent;
+        btn.textContent = "✓ Dodano";
+        setTimeout(() => { btn.textContent = old; }, 1500);
+      });
+    });
+  }
+
+  /* ---------------- Offer analysis: full-detail card (sections editable, note-able, copyable) ---------------- */
+  function offerAnalysisSections(){
+    const j = DEMO_DATA.job;
+    return [
+      { key: "requirements", label: "Wymagania", text: j.requirementsText },
+      { key: "responsibilities", label: "Obowiązki", text: j.responsibilitiesText },
+      { key: "niceToHave", label: "Mile widziane", text: j.niceToHaveText },
+      { key: "benefits", label: "Benefity", text: j.benefitsText }
+    ];
+  }
+
+  function buildOfferAnalysisHtml(chat){
+    const j = DEMO_DATA.job;
+    const custom = chat.offerCustom || {};
+    const sectionsHtml = offerAnalysisSections().map(s => {
+      const note = custom[s.key];
+      return `
+      <div class="offer-section" data-offer-key="${s.key}">
+        <div class="offer-section-top">
+          <button type="button" class="offer-add-custom">✎ Dodaj własną informację</button>
+        </div>
+        <h5>${s.label}</h5>
+        <div class="offer-section-text">${s.text}</div>
+        ${note ? `<div class="offer-custom-note">Własna informacja: ${note}</div>` : ""}
+        <div class="offer-custom-form">
+          <textarea placeholder="Dopisz własną informację do tej sekcji...">${note || ""}</textarea>
+          <div class="offer-custom-form-actions">
+            <button type="button" class="offer-custom-save primary">Zapisz</button>
+            <button type="button" class="offer-custom-cancel">Anuluj</button>
+          </div>
+        </div>
+        <div class="offer-section-actions">
+          <button type="button" class="offer-note">📝 Zanotuj</button>
+          <button type="button" class="offer-copy">⧉ Kopiuj</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    const techTags = j.techRequired.concat(j.techNiceToHave).map(t => `<span class="tag">${t}</span>`).join("");
+
+    return `<div class="offer-analysis">
+      <div class="offer-analysis-head">
+        <h4>📄 Analiza oferty</h4>
+        <span class="offer-confidence">Pewność analizy: ${j.parseConfidence}%</span>
+      </div>
+      <button type="button" class="offer-reanalyze">↻ Analizuj ponownie</button>
+      <div class="offer-meta">
+        <span>Tryb: <b>${j.workMode}</b></span>
+        <span>Umowa: <b>${j.employmentType}</b></span>
+      </div>
+      ${sectionsHtml}
+      <div class="offer-section">
+        <h5>Technologie</h5>
+        <div class="offer-tech-tags">${techTags}</div>
+      </div>
+    </div>`;
+  }
+
+  function wireOfferAnalysis(scope){
+    scope.querySelectorAll(".offer-add-custom").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.closest(".offer-section").querySelector(".offer-custom-form").classList.toggle("open");
+      });
+    });
+    scope.querySelectorAll(".offer-custom-cancel").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.closest(".offer-custom-form").classList.remove("open");
+      });
+    });
+    scope.querySelectorAll(".offer-custom-save").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const key = section.dataset.offerKey;
+        const val = section.querySelector(".offer-custom-form textarea").value.trim();
+        const chat = chats[state.activeChat];
+        if(!chat.offerCustom) chat.offerCustom = {};
+        if(val) chat.offerCustom[key] = val; else delete chat.offerCustom[key];
+        const wrap = section.closest(".msg-assistant");
+        const contentDiv = wrap.querySelector(".content");
+        const html = buildOfferAnalysisHtml(chat);
+        contentDiv.innerHTML = html;
+        wrap.dataset.raw = html;
+        wireOfferAnalysis(contentDiv);
+        wireQaReveal(contentDiv);
+      });
+    });
+    scope.querySelectorAll(".offer-note").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const key = section.dataset.offerKey;
+        const label = section.querySelector("h5").textContent;
+        const text = section.querySelector(".offer-section-text").textContent;
+        const chat = chats[state.activeChat];
+        const custom = chat.offerCustom && chat.offerCustom[key];
+        const body = custom ? `${text}\n\nWłasna informacja: ${custom}` : text;
+        appendNoteBlock(state.activeChat, `## ${DEMO_DATA.job.company} — ${DEMO_DATA.job.position}\n### ${label}\n\n${body}`);
+        const old = btn.textContent;
+        btn.textContent = "✓ Dodano";
+        setTimeout(() => { btn.textContent = old; }, 1500);
+      });
+    });
+    scope.querySelectorAll(".offer-copy").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const text = section.querySelector(".offer-section-text").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+        const old = btn.textContent;
+        btn.textContent = "✓ Copied";
+        setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".offer-reanalyze").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const old = btn.textContent;
+        btn.textContent = "Analizuję ponownie…";
+        btn.disabled = true;
+        setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 700);
+      });
+    });
+  }
+
+  /* ---------------- Company analysis: full-detail card (mirrors offer analysis) ---------------- */
+  function companyAnalysisSections(){
+    const c = DEMO_DATA.company;
+    const techList = DEMO_DATA.job.techRequired.concat(DEMO_DATA.job.techNiceToHave);
+    return [
+      { group: "Firma", key: "summary", label: "Podsumowanie", type: "text", text: c.summary },
+      { key: "productsServices", label: "Produkty i usługi", type: "text", text: c.productsServices },
+      { key: "hiringFocus", label: "Po co rekrutują", type: "text", text: c.hiringFocus },
+      { group: "Praca w firmie", key: "potentialProjects", label: "Potencjalne projekty", type: "text", text: c.potentialProjects },
+      { key: "possibleResponsibilities", label: "Możliwe obowiązki", type: "text", text: c.possibleResponsibilities },
+      { key: "techStack", label: "Technologie firmy", type: "taglist", items: techList },
+      { key: "interviewAngles", label: "Prawdopodobne tematy rozmowy", type: "itemlist", items: c.interviewAngles },
+      { key: "questionsToAsk", label: `Pytania do zadania firmie (${c.questionsToAsk.length})`, type: "questionlist", items: c.questionsToAsk },
+      { key: "risks", label: "Ryzyka i nieznane czynniki", type: "itemlist", items: c.risks }
+    ];
+  }
+
+  function renderCompanySection(s, note){
+    if(s.type === "taglist"){
+      return `<div class="offer-section" data-company-key="${s.key}">
+        <h5>${s.label}</h5>
+        <div class="offer-tech-tags">${s.items.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+        <div class="offer-section-actions">
+          <button type="button" class="company-note-list">📝 Zanotuj listę</button>
+          <button type="button" class="company-copy-list">⧉ Kopiuj listę</button>
+        </div>
+      </div>`;
+    }
+    if(s.type === "itemlist" || s.type === "questionlist"){
+      const bulkActions = s.type === "questionlist"
+        ? `<div class="offer-section-actions" style="margin-bottom:10px;">
+            <button type="button" class="company-note-all">📝 Zanotuj wszystkie</button>
+            <button type="button" class="company-copy-all">⧉ Kopiuj wszystkie</button>
+          </div>` : "";
+      const items = s.items.map((item, i) => `
+        <li class="company-list-item" data-company-item="${i}">
+          <span class="company-list-text">${item}</span>
+          <span class="company-list-actions">
+            <button type="button" class="company-item-note">📝 Zanotuj</button>
+            <button type="button" class="company-item-copy">⧉ Kopiuj</button>
+          </span>
+        </li>`).join("");
+      return `<div class="offer-section" data-company-key="${s.key}">
+        <div class="offer-section-top">
+          <button type="button" class="company-add-custom">✎ Dodaj własną informację</button>
+        </div>
+        <h5>${s.label}</h5>
+        ${bulkActions}
+        <ul class="company-list">${items}</ul>
+        ${note ? `<div class="offer-custom-note">Własna informacja: ${note}</div>` : ""}
+        <div class="company-custom-form">
+          <textarea placeholder="Dopisz własną informację...">${note || ""}</textarea>
+          <div class="company-custom-form-actions">
+            <button type="button" class="company-custom-save primary">Zapisz</button>
+            <button type="button" class="company-custom-cancel">Anuluj</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `<div class="offer-section" data-company-key="${s.key}">
+      <div class="offer-section-top">
+        <button type="button" class="company-add-custom">✎ Dodaj własną informację</button>
+      </div>
+      <h5>${s.label}</h5>
+      <div class="offer-section-text">${s.text}</div>
+      ${note ? `<div class="offer-custom-note">Własna informacja: ${note}</div>` : ""}
+      <div class="company-custom-form">
+        <textarea placeholder="Dopisz własną informację...">${note || ""}</textarea>
+        <div class="company-custom-form-actions">
+          <button type="button" class="company-custom-save primary">Zapisz</button>
+          <button type="button" class="company-custom-cancel">Anuluj</button>
+        </div>
+      </div>
+      <div class="offer-section-actions">
+        <button type="button" class="company-note-text">📝 Zanotuj</button>
+        <button type="button" class="company-copy-text">⧉ Kopiuj</button>
+      </div>
+    </div>`;
+  }
+
+  function buildCompanyAnalysisHtml(chat){
+    const c = DEMO_DATA.company;
+    const custom = chat.companyCustom || {};
+    let lastGroup = null;
+    const sectionsHtml = companyAnalysisSections().map(s => {
+      let groupHtml = "";
+      if(s.group && s.group !== lastGroup){
+        groupHtml = `<div class="company-group-label">${s.group}</div>`;
+        lastGroup = s.group;
+      }
+      return groupHtml + renderCompanySection(s, custom[s.key]);
+    }).join("");
+
+    return `<div class="offer-analysis">
+      <div class="offer-analysis-head">
+        <h4>🏢 Analiza firmy</h4>
+        <span class="offer-confidence">Pewność AI: ${c.confidence}%</span>
+      </div>
+      <button type="button" class="offer-reanalyze">↻ Analizuj ponownie</button>
+      <div class="offer-meta">
+        <span>Branża: <b>${c.industry}</b></span>
+        <span>Wielkość: <b>${c.companySize}</b></span>
+      </div>
+      ${sectionsHtml}
+    </div>`;
+  }
+
+  function wireCompanyAnalysis(scope){
+    scope.querySelectorAll(".company-add-custom").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.closest(".offer-section").querySelector(".company-custom-form").classList.toggle("open");
+      });
+    });
+    scope.querySelectorAll(".company-custom-cancel").forEach(btn => {
+      btn.addEventListener("click", () => {
+        btn.closest(".company-custom-form").classList.remove("open");
+      });
+    });
+    scope.querySelectorAll(".company-custom-save").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const key = section.dataset.companyKey;
+        const val = section.querySelector(".company-custom-form textarea").value.trim();
+        const chat = chats[state.activeChat];
+        if(!chat.companyCustom) chat.companyCustom = {};
+        if(val) chat.companyCustom[key] = val; else delete chat.companyCustom[key];
+        const wrap = section.closest(".msg-assistant");
+        const contentDiv = wrap.querySelector(".content");
+        const html = buildCompanyAnalysisHtml(chat);
+        contentDiv.innerHTML = html;
+        wrap.dataset.raw = html;
+        wireCompanyAnalysis(contentDiv);
+        wireOfferAnalysis(contentDiv);
+      });
+    });
+
+    function noteBlock(label, body){
+      const chat = chats[state.activeChat];
+      appendNoteBlock(state.activeChat, `## ${DEMO_DATA.job.company}\n### ${label}\n\n${body}`);
+    }
+    function flash(btn){
+      const old = btn.textContent;
+      btn.textContent = "✓ Dodano";
+      setTimeout(() => { btn.textContent = old; }, 1500);
+    }
+
+    scope.querySelectorAll(".company-note-text").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const label = section.querySelector("h5").textContent;
+        const key = section.dataset.companyKey;
+        const chat = chats[state.activeChat];
+        const custom = chat.companyCustom && chat.companyCustom[key];
+        const text = section.querySelector(".offer-section-text").textContent;
+        noteBlock(label, custom ? `${text}\n\nWłasna informacja: ${custom}` : text);
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".company-copy-text").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const text = btn.closest(".offer-section").querySelector(".offer-section-text").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".company-note-list").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const label = section.querySelector("h5").textContent;
+        const tags = Array.from(section.querySelectorAll(".tag")).map(t => t.textContent);
+        noteBlock(label, tags.map(t => `- ${t}`).join("\n"));
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".company-copy-list").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const tags = Array.from(section.querySelectorAll(".tag")).map(t => t.textContent);
+        navigator.clipboard && navigator.clipboard.writeText(tags.join(", ")).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".company-item-note").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const li = btn.closest(".company-list-item");
+        const section = btn.closest(".offer-section");
+        const label = section.querySelector("h5").textContent;
+        const text = li.querySelector(".company-list-text").textContent;
+        noteBlock(label, text);
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".company-item-copy").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const text = btn.closest(".company-list-item").querySelector(".company-list-text").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".company-note-all").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const label = section.querySelector("h5").textContent;
+        const items = Array.from(section.querySelectorAll(".company-list-text")).map(t => t.textContent);
+        noteBlock(label, items.map((t, i) => `${i + 1}. ${t}`).join("\n"));
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".company-copy-all").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const items = Array.from(btn.closest(".offer-section").querySelectorAll(".company-list-text")).map(t => t.textContent);
+        navigator.clipboard && navigator.clipboard.writeText(items.join("\n")).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+  }
+
+  /* ---------------- Interview Prep: bilingual PL/EN card ---------------- */
+  function attrEsc(s){
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  function buildInterviewPrepHtml(chat){
+    const g = DEMO_DATA;
+    const ip = g.interviewPrep;
+    const narrativePl = g.hrQuestions[0].sampleAnswer;
+
+    const strengthChips = g.strengths.map((s, i) => {
+      const en = ip.strengthsEn[i];
+      return `<div class="iprep-chip">
+        <span class="iprep-chip-num">${i + 1}</span>
+        <span class="iprep-chip-text">
+          <b class="iprep-chip-title" data-pl="${attrEsc(s.title)}" data-en="${attrEsc(en.title)}">${s.title}</b>
+          <span class="iprep-chip-why" data-pl="${attrEsc(s.why)}" data-en="${attrEsc(en.why)}">${s.why}</span>
+        </span>
+      </div>`;
+    }).join("");
+
+    const improveChips = g.gaps.map((gp, i) => {
+      const en = ip.improveAreasEn[i];
+      return `<div class="iprep-chip iprep-chip-improve">
+        <span class="iprep-chip-num">${i + 1}</span>
+        <span class="iprep-chip-text">
+          <b class="iprep-chip-title" data-pl="${attrEsc(gp.title)}" data-en="${attrEsc(en.title)}">${gp.title}</b>
+          <span class="iprep-chip-why" data-pl="${attrEsc(gp.why)}" data-en="${attrEsc(en.why)}">${gp.why}</span>
+        </span>
+      </div>`;
+    }).join("");
+
+    const questionsPl = g.company.questionsToAsk;
+    const questionsEn = ip.questionsToAskEn;
+    const questionItems = questionsPl.map((q, i) => `
+      <li class="company-list-item" data-iprep-q="${i}">
+        <span class="company-list-text iprep-q-text" data-pl="${attrEsc(q)}" data-en="${attrEsc(questionsEn[i])}">${q}</span>
+        <span class="company-list-actions">
+          <button type="button" class="iprep-item-note">📝 Zanotuj</button>
+          <button type="button" class="iprep-item-copy">⧉ Kopiuj</button>
+        </span>
+      </li>`).join("");
+
+    return `<div class="offer-analysis iprep-card" data-lang="pl">
+      <div class="offer-analysis-head">
+        <h4>🎤 Interview Prep</h4>
+        <div class="iprep-lang-toggle">
+          <button type="button" class="iprep-lang-btn active" data-lang="pl">PL</button>
+          <button type="button" class="iprep-lang-btn" data-lang="en">EN</button>
+        </div>
+      </div>
+
+      <div class="offer-section">
+        <h5 data-pl="Twoja narracja zawodowa" data-en="Your professional narrative">Twoja narracja zawodowa</h5>
+        <div class="offer-section-text iprep-narrative" data-pl="${attrEsc(narrativePl)}" data-en="${attrEsc(ip.narrativeEn)}">${narrativePl}</div>
+        <div class="offer-section-actions">
+          <button type="button" class="iprep-note-narrative">📝 Zanotuj</button>
+          <button type="button" class="iprep-copy-narrative">⧉ Kopiuj</button>
+        </div>
+      </div>
+
+      <div class="offer-section">
+        <h5 data-pl="Mocne strony" data-en="Strengths">Mocne strony</h5>
+        <div class="iprep-chips">${strengthChips}</div>
+      </div>
+
+      <div class="offer-section">
+        <h5 data-pl="Obszary do poprawy" data-en="Areas to improve">Obszary do poprawy</h5>
+        <div class="iprep-chips">${improveChips}</div>
+      </div>
+
+      <div class="offer-section">
+        <h5 data-pl="Pytania do rekrutera (${questionsPl.length})" data-en="Questions to ask the recruiter (${questionsPl.length})">Pytania do rekrutera (${questionsPl.length})</h5>
+        <div class="offer-section-actions" style="margin-bottom:10px;">
+          <button type="button" class="iprep-note-all">📝 Zanotuj wszystkie</button>
+          <button type="button" class="iprep-copy-all">⧉ Kopiuj wszystkie</button>
+        </div>
+        <ul class="company-list">${questionItems}</ul>
+      </div>
+    </div>`;
+  }
+
+  function wireInterviewPrepCard(scope){
+    scope.querySelectorAll(".iprep-card").forEach(card => {
+      const applyLang = (lang) => {
+        card.dataset.lang = lang;
+        card.querySelectorAll(".iprep-lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+        card.querySelectorAll("[data-pl][data-en]").forEach(el => {
+          el.textContent = lang === "en" ? el.dataset.en : el.dataset.pl;
+        });
+      };
+      card.querySelectorAll(".iprep-lang-btn").forEach(btn => {
+        btn.addEventListener("click", () => applyLang(btn.dataset.lang));
+      });
+    });
+
+    function flash(btn){
+      const old = btn.textContent;
+      btn.textContent = "✓ Dodano";
+      setTimeout(() => { btn.textContent = old; }, 1500);
+    }
+
+    scope.querySelectorAll(".iprep-note-narrative").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const label = section.querySelector("h5").textContent;
+        const text = section.querySelector(".iprep-narrative").textContent;
+        appendNoteBlock(state.activeChat, `## ${DEMO_DATA.job.company} — Interview Prep\n### ${label}\n\n${text}`);
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".iprep-copy-narrative").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const text = btn.closest(".offer-section").querySelector(".iprep-narrative").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".iprep-item-note").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const li = btn.closest(".company-list-item");
+        const text = li.querySelector(".iprep-q-text").textContent;
+        appendNoteBlock(state.activeChat, `## ${DEMO_DATA.job.company} — Interview Prep\n### Pytanie do rekrutera\n\n${text}`);
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".iprep-item-copy").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const text = btn.closest(".company-list-item").querySelector(".iprep-q-text").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+    scope.querySelectorAll(".iprep-note-all").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".offer-section");
+        const items = Array.from(section.querySelectorAll(".iprep-q-text")).map(t => t.textContent);
+        appendNoteBlock(state.activeChat, `## ${DEMO_DATA.job.company} — Interview Prep\n### Pytania do rekrutera\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}`);
+        flash(btn);
+      });
+    });
+    scope.querySelectorAll(".iprep-copy-all").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const items = Array.from(btn.closest(".offer-section").querySelectorAll(".iprep-q-text")).map(t => t.textContent);
+        navigator.clipboard && navigator.clipboard.writeText(items.join("\n")).catch(() => {});
+        const old = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(() => { btn.textContent = old; }, 1200);
+      });
+    });
+  }
+
+  function demoReply(chat, text){
+    const ds = chat.demoState || (chat.demoState = { mode: null, qIndex: 0 });
+
+    if(ds.mode === "technical") return demoTechnicalStep(chat, text);
+    if(ds.mode === "business") return demoBusinessStep(chat, text);
+    if(ds.mode === "hr") return demoHrStep(chat, text);
+
+    const t = text.toLowerCase();
+    if(t.includes("readiness")) return demoReadinessAnswer(chat);
+    if(t.includes("tomorrow") || t.includes("jutro")) return demoFocusFive();
+    if(t.includes("gap") || t.includes("luk") || t.includes("brak")) return demoGapsAnswer();
+    if(t.includes("strength") || t.includes("mocn")) return demoStrengthsAnswer();
+    if(t.includes("mock")) return { html: buildMockInterviewListHtml(), renderAs: "mockList" };
+    if(t.includes("analiza oferty") || t.includes("analizę oferty") || t.includes("offer analysis") || t.includes("szczegóły oferty")) {
+      return { html: buildOfferAnalysisHtml(chat), renderAs: "offerAnalysis" };
+    }
+    if(t.includes("interview prep") || t.includes("pytania do rekrutera") || t.includes("pytania dla rekrutera") || t.includes("questions to ask the recruiter") || t.includes("questions to recruiter")) {
+      return { html: buildInterviewPrepHtml(chat), renderAs: "interviewPrep" };
+    }
+    if(t.includes("technical")) { ds.mode = "technical"; ds.qIndex = 0; return demoTechnicalQuestionText(0); }
+    if(t.includes("business case") || t.includes("case")) { ds.mode = "business"; return demoBusinessCaseIntro(); }
+    if(t.includes("hr")) { ds.mode = "hr"; ds.qIndex = 0; return demoHrQuestionText(0); }
+    if(t.includes("match") || t.includes("dopasow")) return demoMatchAnswer();
+    if(t.includes(DEMO_DATA.job.company.toLowerCase()) || t.includes("company") || t.includes("firm")) {
+      return { html: buildCompanyAnalysisHtml(chat), renderAs: "companyAnalysis" };
+    }
+    if(t.includes("study") || t.includes("plan") || t.includes("naucz") || t.includes("przygotuj")) return demoStudyPlanAnswer();
+    return `W trybie Demo najlepiej działam z konkretnymi tematami — spróbuj zapytać o **dopasowanie**, **luki**, **firmę** albo **plan nauki**, albo poproś o **technical interview**, **business case**, **HR questions** czy **mock interview**.`;
+  }
+
+  function makeDemoChat(){
+    return {
+      title: DEMO_DATA.job.position + " — " + DEMO_DATA.job.company,
+      type: "job",
+      isDemo: true,
+      messages: [],
+      quickActions: DEMO_QUICK_ACTIONS,
+      appInfo: {
+        company: DEMO_DATA.job.company,
+        position: DEMO_DATA.job.position + ", " + DEMO_DATA.job.domain,
+        meta: DEMO_DATA.job.location + " · " + DEMO_DATA.job.workMode,
+        readiness: DEMO_DATA.readiness
+      },
+      demoState: { mode: null, qIndex: 0 },
+      notebook: ""
+    };
+  }
+
+  function enterAppTileMode(){
+    $("#sidebar").classList.add("demo-mode");
+    $("#appInfoPanel").classList.add("tile-active");
+  }
+
+  function exitDemoTile(){
+    $("#sidebar").classList.remove("demo-mode");
+    $("#appInfoPanel").classList.remove("tile-active");
+    state.activeChat = "matches";
+    renderChatList();
+    refreshChatView();
+  }
+
+  function startDemo(){
+    if(!chats.demo) chats.demo = makeDemoChat();
+    if(!chats.demo.messages.length){
+      // Mirror the paste-a-link flow: the offer link appears as its own bubble first,
+      // and the analysis is shown underneath it — same shape regardless of entry point.
+      chats.demo.messages.push({role:"user", text: DEMO_DATA.job.sourceUrl});
+      chats.demo.messages.push({role:"assistant", text: demoOpening()});
+    }
+    state.activeChat = "demo";
+    enterAppTileMode();
+    renderChatList();
+    refreshChatView();
+  }
+
+  /* ---------------- Natural entry point: paste a job offer straight into a fresh chat ---------------- */
+  const JOB_OFFER_KEYWORDS = ["wymagania","obowiązki","oferujemy","wynagrodzenie","requirements","responsibilities","we offer","doświadczenie","umowa o pracę","b2b","stanowisko","zakres obowiązków","nasze wymagania","benefity","specjalizacje"];
+
+  function looksLikeJobOffer(text){
+    if(text.length < 200) return false;
+    const t = text.toLowerCase();
+    let hits = 0;
+    JOB_OFFER_KEYWORDS.forEach(k => { if(t.includes(k)) hits++; });
+    return hits >= 2;
+  }
+
+  function looksLikeMaspexOfferUrl(text){
+    if(!/^https?:\/\/\S+$/i.test(text)) return false;
+    const t = text.toLowerCase();
+    return t.includes("pracuj.pl") && (t.includes("power-bi-developer") || t.includes("maspex") || t.includes("wadowice"));
+  }
+
+  function looksLikeMaspexOffer(text){
+    const t = text.toLowerCase();
+    return t.includes("maspex") || (t.includes("power bi developer") && (t.includes("wadowice") || t.includes(" dax")));
+  }
+
+  /* ---------------- wiring ---------------- */
+  document.addEventListener("DOMContentLoaded", () => {
+    renderChatList();
+    refreshChatView();
+    updateProfileUI();
+    renderProtectedList();
+    renderJobList();
+
+    $("#tryDemoBtn").addEventListener("click", startDemo);
+    $("#appInfoBack").addEventListener("click", exitDemoTile);
+
+    // timeline dropdown
+    $("#timelinePill").addEventListener("click", (e) => {
+      e.stopPropagation();
+      $("#styleMenu").classList.remove("open");
+      renderTimelineMenu();
+      $("#timelineMenu").classList.toggle("open");
+    });
+    $("#timelineMenu").addEventListener("click", (e) => e.stopPropagation());
+    [
+      ["tlApplied", "applied"],
+      ["tlPhoneScreen", "phoneScreen"],
+      ["tlTechnical", "technical"],
+      ["tlRecruiterPhone", "recruiterPhone"],
+      ["tlRecruiterEmail", "recruiterEmail"],
+      ["tlDevPhone", "devPhone"],
+      ["tlDevEmail", "devEmail"]
+    ].forEach(([id, field]) => {
+      $("#" + id).addEventListener("input", () => saveTimelineField(field, $("#" + id).value));
+    });
+
+    // notebook panel
+    let notebookWidth = parseInt(safeStorage.get("cvs_notebookWidth", "300"), 10) || 300;
+    $("#notebookPanel").style.width = notebookWidth + "px";
+    $("#notebookPill").classList.add("notebook-active");
+    $("#notebookPill").addEventListener("click", () => {
+      const nowHidden = $("#notebookPanel").classList.toggle("hidden-panel");
+      $("#notebookPill").classList.toggle("notebook-active");
+      $("#notebookResizer").classList.toggle("hidden-resizer", nowHidden);
+    });
+
+    // notebook resize (drag the handle to resize freely)
+    (function(){
+      const resizer = $("#notebookResizer");
+      const panel = $("#notebookPanel");
+      let dragging = false;
+
+      resizer.addEventListener("mousedown", (e) => {
+        if(panel.classList.contains("hidden-panel")) return;
+        dragging = true;
+        resizer.classList.add("dragging");
+        document.body.classList.add("resizing-notebook");
+        e.preventDefault();
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if(!dragging) return;
+        const maxWidth = Math.min(720, window.innerWidth - 320);
+        const newWidth = Math.max(220, Math.min(maxWidth, window.innerWidth - e.clientX));
+        notebookWidth = newWidth;
+        panel.style.width = newWidth + "px";
+      });
+
+      window.addEventListener("mouseup", () => {
+        if(!dragging) return;
+        dragging = false;
+        resizer.classList.remove("dragging");
+        document.body.classList.remove("resizing-notebook");
+        safeStorage.set("cvs_notebookWidth", String(notebookWidth));
+      });
+    })();
+    $("#nbTextarea").addEventListener("input", () => {
+      const key = state.activeChat;
+      if(chats[key]){
+        chats[key].notebook = $("#nbTextarea").value;
+        $("#nbSaved").textContent = "Saved";
+        clearTimeout(window._nbSavedTimeout);
+        window._nbSavedTimeout = setTimeout(() => { $("#nbSaved").textContent = ""; }, 1200);
+      }
+    });
+    $("#nbSummarizeBtn").addEventListener("click", () => {
+      const key = state.activeChat;
+      if(!chats[key]) return;
+      const summary = generateSummary(key);
+      chats[key].notebook = summary;
+      $("#nbTextarea").value = summary;
+      $("#nbSaved").textContent = "Summarized";
+      clearTimeout(window._nbSavedTimeout);
+      window._nbSavedTimeout = setTimeout(() => { $("#nbSaved").textContent = ""; }, 1500);
+    });
+    $("#nbClearBtn").addEventListener("click", () => {
+      const key = state.activeChat;
+      if(!chats[key]) return;
+      chats[key].notebook = "";
+      $("#nbTextarea").value = "";
+      $("#nbTextarea").focus();
+    });
+
+    // populate "link to job from board" select
+    jobs.forEach(j => {
+      const opt = document.createElement("option");
+      opt.value = j.id;
+      opt.textContent = `${j.title} — ${j.company} (${j.match}% match)`;
+      $("#newRoleFromBoard").appendChild(opt);
+    });
+    $("#newRoleFromBoard").addEventListener("change", () => {
+      const jobId = $("#newRoleFromBoard").value;
+      if(!jobId) return;
+      const job = jobs.find(j => j.id === jobId);
+      if(!job) return;
+      openOrCreateJobTarget(job);
+      $("#addRolePanel").classList.add("hidden");
+      $("#newRoleFromBoard").value = "";
+      $("#newRoleInput").value = "";
+      $("#confirmAddRole").disabled = true;
+    });
+
+    // profile card -> open flow
+    $("#profileCard").addEventListener("click", () => {
+      if(state.profileBuilt){
+        openOverlay("modalProfile");
+      } else {
+        openOverlay("modalBuildProfile");
+      }
+    });
+    $("#railProfile").addEventListener("click", () => $("#profileCard").click());
+
+    // dropzone -> guide
+    $("#dropzone").addEventListener("click", () => {
+      if(safeStorage.get("cvs_skipGuide", "false") === "true"){
+        openOverlay("modalReview");
+      } else {
+        openOverlay("modalGuide");
+      }
+    });
+    $("#guideContinueBtn").addEventListener("click", () => {
+      if($("#dontShowGuide").checked) safeStorage.set("cvs_skipGuide","true");
+      openOverlay("modalReview");
+    });
+
+    // custom hide phrase
+    $("#customHideBtn").addEventListener("click", () => {
+      const val = $("#customHideInput").value.trim();
+      if(!val) return;
+      state.protectedItems.push({label:"Custom phrase", masked:"•••••••", on:true});
+      $("#customHideInput").value = "";
+      renderProtectedList();
+    });
+
+    // review -> extracting -> profile
+    $("#reviewContinueBtn").addEventListener("click", () => {
+      openOverlay("modalExtracting");
+      setTimeout(() => {
+        state.profileBuilt = true;
+        updateProfileUI();
+        openOverlay("modalProfile");
+      }, 1400);
+    });
+    $("#closeProfileBtn").addEventListener("click", closeOverlay);
+    $("#editManuallyBtn").addEventListener("click", () => alert("Prototype: this would open an editable form for the extracted profile fields."));
+    $("#rebuildBtn").addEventListener("click", () => openOverlay("modalBuildProfile"));
+
+    // overlay close handlers
+    $("#overlay").addEventListener("click", (e) => { if(e.target.id === "overlay") closeOverlay(); });
+    $$("[data-close]").forEach(btn => btn.addEventListener("click", closeOverlay));
+
+    // settings
+    $("#settingsBtn").addEventListener("click", () => openOverlay("modalSettings"));
+
+    // job board
+    $("#jobRolePill").addEventListener("click", () => { renderJobList(); openOverlay("modalJobBoard"); });
+    $("#jobSearchInput").addEventListener("input", renderJobList);
+    $("#jobModeFilter").addEventListener("change", renderJobList);
+
+    // response style dropdown
+    $("#styleBtn").addEventListener("click", (e) => { e.stopPropagation(); $("#styleMenu").classList.toggle("open"); });
+    $$(".style-menu .opt").forEach(opt => opt.addEventListener("click", () => {
+      state.responseStyle = opt.dataset.val;
+      $("#styleLabel").textContent = opt.dataset.val;
+      $$(".style-menu .opt").forEach(o=>o.classList.remove("selected"));
+      opt.classList.add("selected");
+      $("#styleMenu").classList.remove("open");
+    }));
+    document.addEventListener("click", () => {
+      $("#styleMenu").classList.remove("open");
+      $("#timelineMenu").classList.remove("open");
+    });
+
+    // profile toggle switch
+    $("#profilePill").addEventListener("click", () => {
+      state.profileOn = !state.profileOn;
+      $("#profileSwitch").classList.toggle("on", state.profileOn);
+    });
+    $("#profileSwitch").classList.add("on");
+
+    // sidebar collapse
+    $("#collapseBtn").addEventListener("click", () => {
+      $("#sidebar").classList.add("collapsed");
+      $("#expandBtn").style.display = "flex";
+    });
+    $("#expandBtn").addEventListener("click", () => {
+      $("#sidebar").classList.remove("collapsed");
+      $("#expandBtn").style.display = "none";
+    });
+
+    // add target panel
+    let newTargetType = "job";
+    $("#addRoleIconBtn").addEventListener("click", () => $("#addRolePanel").classList.toggle("hidden"));
+    $("#cancelAddRole").addEventListener("click", () => { $("#addRolePanel").classList.add("hidden"); $("#newRoleInput").value=""; $("#confirmAddRole").disabled = true; });
+    $("#newRoleInput").addEventListener("input", () => { $("#confirmAddRole").disabled = !$("#newRoleInput").value.trim(); });
+    $$("#targetTypeSwitch button").forEach(btn => btn.addEventListener("click", () => {
+      newTargetType = btn.dataset.type;
+      $$("#targetTypeSwitch button").forEach(b=>b.classList.remove("selected"));
+      btn.classList.add("selected");
+      $("#newRoleInput").placeholder = newTargetType === "study"
+        ? "e.g. AWS Solutions Architect Associate exam"
+        : "e.g. Lead Backend Engineer — FinCore";
+    }));
+    $("#confirmAddRole").addEventListener("click", () => {
+      const name = $("#newRoleInput").value.trim();
+      if(!name) return;
+      const key = (newTargetType === "study" ? "study_" : "role_") + Date.now();
+      chats[key] = {
+        title: name,
+        type: newTargetType,
+        messages:[
+          {role:"user", text: newTargetType === "study"
+            ? `I want to prepare for "${name}". Where should I focus based on my current profile?`
+            : `Analyze the "${name}" role and how I should position my profile for it.`},
+          {role:"assistant", text: scriptedReply(name)}
+        ]
+      };
+      state.activeChat = key;
+      renderChatList(); refreshChatView();
+      $("#addRolePanel").classList.add("hidden");
+      $("#newRoleInput").value = ""; $("#confirmAddRole").disabled = true;
+    });
+
+    // new chat buttons
+    function newChat(){
+      const key = "chat_" + Date.now();
+      chats[key] = {title:"New chat", messages:[], notebook:""};
+      state.activeChat = key;
+      renderChatList(); refreshChatView();
+    }
+    $("#newChatFooterBtn").addEventListener("click", newChat);
+    $("#addChatBtn").addEventListener("click", newChat);
+
+    // composer
+    const input = $("#composerInput");
+    function autoGrowFn(){ input.style.height="auto"; input.style.height = Math.min(input.scrollHeight,120)+"px"; }
+    window.autoGrow = autoGrowFn;
+    input.addEventListener("input", autoGrowFn);
+    input.addEventListener("keydown", (e) => {
+      if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(input.value); }
+    });
+
+    // demo banner exit
+    $("#exitDemoBtn").addEventListener("click", () => {
+      $("#bannerText").textContent = "Prototype mode — this is a static, local mock-up (no backend, no database)";
+      $("#exitDemoBtn").style.display = "none";
+    });
+  });
+
+  function autoGrow(){ if(window.autoGrow) window.autoGrow(); }
+})();
+</script>
+</body>
+</html>
